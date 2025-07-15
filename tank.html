@@ -23,7 +23,7 @@
 <body>
   <button id="startBtn" style="position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);font-size:2em;padding:0.5em 2em;z-index:2;">Start</button>
   <canvas id="gameCanvas" width="500" height="400" style="display:none;"></canvas>
-  <audio id="bgm" src="game-music.mp3" loop></audio>
+  <audio id="bgm" src="my-love-don-t-let-love-fade.mp3" loop></audio>
   <script>
 
     const startBtn = document.getElementById('startBtn');
@@ -214,12 +214,22 @@ for (let i = window.explosions.length - 1; i >= 0; i--) {
       }
     }
 
-    startBtn.addEventListener('click', function() {
+startBtn.addEventListener('click', function() {
       startBtn.style.display = 'none';
       canvas.style.display = '';
       gameStarted = true;
       bgm.currentTime = 0;
-      bgm.play();
+      // Try to play audio, fallback if blocked
+      bgm.play().then(() => {
+        // success
+      }).catch(() => {
+        // If failed, show a message and try again on next user gesture
+        alert('Click anywhere to enable game music!');
+        document.body.addEventListener('click', function tryPlay() {
+          bgm.play();
+          document.body.removeEventListener('click', tryPlay);
+        });
+      });
       gameLoop();
     });
   </script>
