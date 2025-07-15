@@ -21,10 +21,17 @@
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="500" height="400"></canvas>
+  <button id="startBtn" style="position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);font-size:2em;padding:0.5em 2em;z-index:2;">Start</button>
+  <canvas id="gameCanvas" width="500" height="400" style="display:none;"></canvas>
+  <audio id="bgm" src="game-music.mp3" loop></audio>
   <script>
+
+    const startBtn = document.getElementById('startBtn');
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const bgm = document.getElementById('bgm');
+
+    let gameStarted = false;
 
     const tank = {
         x: 220,
@@ -110,6 +117,16 @@ function update() {
       if (keys['ArrowRight']) tank.x = Math.min(canvas.width - 60, tank.x + tank.speed);
       if (keys['ArrowUp']) tank.y = Math.max(0, tank.y - tank.speed);
       if (keys['ArrowDown']) tank.y = Math.min(canvas.height - 50, tank.y + tank.speed);
+      // Shooting when holding space
+      if ((keys[' '] || keys['Spacebar']) && shootCooldown <= 0) {
+        bullets.push({
+          x: tank.x + 30,
+          y: tank.y - 20
+        });
+        shootCooldown = 10; // frames between shots (adjust for faster/slower shooting)
+      }
+      if (shootCooldown > 0) shootCooldown--;
+      
       // Vẽ xe tăng người chơi
       drawTank(tank.x, tank.y);
       // Cập nhật và vẽ đạn
@@ -178,29 +195,33 @@ for (let i = window.explosions.length - 1; i >= 0; i--) {
     }
 
     // Xử lý phím mũi tên và bắn đạn
-    // Smooth movement with key state
+    // Smooth movement and shooting with key state
     const keys = {};
     document.addEventListener('keydown', function(e) {
       keys[e.key] = true;
-      if (e.key === ' ' || e.key === 'Spacebar') {
-        // Bắn đạn từ đầu nòng pháo
-        bullets.push({
-          x: tank.x + 30,
-          y: tank.y - 20
-        });
-      }
     });
     document.addEventListener('keyup', function(e) {
       keys[e.key] = false;
     });
-    // (removed: now handled in update function)
+
+    // Shooting cooldown
+    let shootCooldown = 0;
 
     function gameLoop() {
-      update();
-      requestAnimationFrame(gameLoop);
+      if (gameStarted) {
+        update();
+        requestAnimationFrame(gameLoop);
+      }
     }
 
-    gameLoop();
+    startBtn.addEventListener('click', function() {
+      startBtn.style.display = 'none';
+      canvas.style.display = '';
+      gameStarted = true;
+      bgm.currentTime = 0;
+      bgm.play();
+      gameLoop();
+    });
   </script>
 </body>
 </html>
