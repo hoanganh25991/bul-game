@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bắn Xe Tăng</title>
+  <style>
+    body {
+      background: #222;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    canvas {
+      background: #444;
+      border: 2px solid #fff;
+      box-shadow: 0 0 20px #000a;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="500" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const tank = {
+        x: 220,
+        y: 300, // Đặt xe tăng người chơi ở gần cuối màn hình
+        speed: 8
+    };
+
+    let bullets = [];
+    const bulletSpeed = 7;
+
+    function drawBullet(bullet) {
+      ctx.fillStyle = '#ffeb3b';
+      ctx.beginPath();
+      ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawExplosion(x, y) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x + 30, y + 35, 25, 0, Math.PI * 2);
+      ctx.fillStyle = 'orange';
+      ctx.globalAlpha = 0.7;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + 30, y + 35, 12, 0, Math.PI * 2);
+      ctx.fillStyle = 'yellow';
+      ctx.globalAlpha = 0.9;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = false) {
+  // reverse = false: xe tăng hướng lên, true: hướng xuống
+  ctx.save();
+  if (reverse) {
+    ctx.translate(x + 30, y + 35);
+    ctx.rotate(Math.PI);
+    ctx.translate(-x - 30, -y - 35);
+  }
+  // Thân xe
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + 20, 60, 30);
+  // Tháp pháo
+  ctx.fillStyle = turretColor;
+  ctx.fillRect(x + 15, y, 30, 30);
+  // Nòng pháo
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x + 27, y - 20, 6, 20);
+  // Bánh xe
+  ctx.fillStyle = '#222';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(x + 15 + i * 15, y + 50, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+// Enemy tanks
+let enemies = [];
+const enemySpeed = 2;
+const enemySpawnInterval = 120; // frames
+let frameCount = 0;
+
+function spawnEnemy() {
+  // Random x position, y = -50 (trên màn hình), random hướng di chuyển
+  const x = Math.floor(Math.random() * (canvas.width - 60));
+  // enemy sẽ có hướng di chuyển ngẫu nhiên ban đầu
+  const dx = Math.random() < 0.5 ? enemySpeed : -enemySpeed;
+  const dy = 1.2; // tốc độ xuống chậm hơn để mượt
+  enemies.push({ x: x, y: -50, dx: dx, dy: dy });
+}
+
+    function clear() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+function update() {
+      clear();
+      // Smooth tank movement
+      if (keys['ArrowLeft']) tank.x = Math.max(0, tank.x - tank.speed);
+      if (keys['ArrowRight']) tank.x = Math.min(canvas.width - 60, tank.x + tank.speed);
+      if (keys['ArrowUp']) tank.y = Math.max(0, tank.y - tank.speed);
+      if (keys['ArrowDown']) tank.y = Math.min(canvas.height - 50, tank.y + tank.speed);
+      // Vẽ xe tăng người chơi
+      drawTank(tank.x, tank.y);
+      // Cập nhật và vẽ đạn
+      for (let i = 0; i < bullets.length; i++) {
+        bullets[i].y -= bulletSpeed;
+        drawBullet(bullets[i]);
+      }
+      bullets = bullets.filter(b => b.y > -10);
+
+      // Kiểm tra va chạm đạn và xe tăng địch
+      let explosions = [];
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        let enemy = enemies[i];
+        for (let j = bullets.length - 1; j >= 0; j--) {
+          let bullet = bullets[j];
+          // Kiểm tra va chạm hình chữ nhật đơn giản
+          if (
+            bullet.x > enemy.x && bullet.x < enemy.x + 60 &&
+            bullet.y > enemy.y && bullet.y < enemy.y + 50
+          ) {
+            // Thêm hiệu ứng nổ
+            explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+            // Xóa đạn và xe tăng địch
+            enemies.splice(i, 1);
+            bullets.splice(j, 1);
+            break;
+          }
+        }
+      }
+
+// Cập nhật và vẽ quân địch
+for (let i = 0; i < enemies.length; i++) {
+  let enemy = enemies[i];
+  // Di chuyển ngang dọc tới lui mượt mà
+  enemy.x += enemy.dx;
+  enemy.y += enemy.dy;
+  // Đổi hướng khi chạm biên ngang
+  if (enemy.x < 0) {
+    enemy.x = 0;
+    enemy.dx *= -1;
+  } else if (enemy.x > canvas.width - 60) {
+    enemy.x = canvas.width - 60;
+    enemy.dx *= -1;
+  }
+  // Vẽ xe tăng địch: màu xanh dương, nòng pháo hướng xuống
+  drawTank(enemy.x, enemy.y, '#2196f3', '#1565c0', true);
+}
+// Xóa quân địch ra khỏi mảng nếu ra khỏi màn hình
+enemies = enemies.filter(e => e.y > -70 && e.y < canvas.height + 70);
+
+// Vẽ hiệu ứng nổ
+if (typeof window.explosions === 'undefined') window.explosions = [];
+window.explosions = (window.explosions || []).concat(explosions || []);
+for (let i = window.explosions.length - 1; i >= 0; i--) {
+  let ex = window.explosions[i];
+  drawExplosion(ex.x, ex.y);
+  ex.time++;
+  if (ex.time > 15) window.explosions.splice(i, 1);
+}
+
+      // Sinh quân địch mới theo thời gian
+      frameCount++;
+      if (frameCount % enemySpawnInterval === 0) {
+        spawnEnemy();
+      }
+    }
+
+    // Xử lý phím mũi tên và bắn đạn
+    // Smooth movement with key state
+    const keys = {};
+    document.addEventListener('keydown', function(e) {
+      keys[e.key] = true;
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        // Bắn đạn từ đầu nòng pháo
+        bullets.push({
+          x: tank.x + 30,
+          y: tank.y - 20
+        });
+      }
+    });
+    document.addEventListener('keyup', function(e) {
+      keys[e.key] = false;
+    });
+    // (removed: now handled in update function)
+
+    function gameLoop() {
+      update();
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>
