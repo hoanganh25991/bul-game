@@ -528,7 +528,66 @@ function update() {
     ctx.shadowBlur = 8;
     ctx.fillText('Bạn đã thua trò chơi', canvas.width / 2, canvas.height / 2);
     ctx.restore();
+    // Hiện nút chơi lại
+    showReplayButton();
     return;
+// Thêm nút chơi lại
+function showReplayButton() {
+  let btn = document.getElementById('replayBtn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'replayBtn';
+    btn.innerText = 'Chơi lại';
+    btn.style.position = 'fixed';
+    btn.style.top = 'calc(50% + 60px)';
+    btn.style.left = '50%';
+    btn.style.transform = 'translate(-50%,0)';
+    btn.style.fontSize = '2em';
+    btn.style.padding = '0.5em 2em';
+    btn.style.zIndex = '100';
+    btn.style.background = '#2196f3';
+    btn.style.color = '#fff';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '15px';
+    btn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
+    btn.style.cursor = 'pointer';
+    document.body.appendChild(btn);
+    btn.addEventListener('click', function() {
+      // Reset trạng thái game
+      resetGame();
+      btn.remove();
+    });
+  }
+  btn.style.display = 'block';
+}
+
+function resetGame() {
+  // Reset các biến game
+  tank.hp = tank.maxHp;
+  tank.x = canvas.width/2 - 30;
+  tank.y = canvas.height - 120;
+  if (typeof tank.worldX !== 'undefined') tank.worldX = 0;
+  if (typeof tank.worldY !== 'undefined') tank.worldY = 0;
+  bullets = [];
+  enemyBullets = [];
+  enemies = [];
+  window.explosions = [];
+  window.tankExplosions = [];
+  window.tankHitExplosions = [];
+  frameCount = 0;
+  gameStarted = true;
+  // Ẩn nút replay nếu còn
+  let btn = document.getElementById('replayBtn');
+  if (btn) btn.style.display = 'none';
+  // Bật lại controls nếu có
+  if (movementControls) movementControls.style.display = 'grid';
+  if (shootControls) shootControls.style.display = 'block';
+  // Bật lại nhạc
+  bgm.currentTime = 0;
+  bgm.play();
+  // Chạy lại game loop
+  requestAnimationFrame(gameLoop);
+}
   } else {
     window.tankExplosions = [];
   }
