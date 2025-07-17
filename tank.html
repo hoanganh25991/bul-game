@@ -2,27 +2,213 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Bắn Xe Tăng</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+    
     body {
       background: #222;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    .game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      margin: 0;
     }
+    
     canvas {
       background: #444;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+    
+    /* Điều khiển di chuyển - góc trái */
+    .movement-controls {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      display: none;
+      grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(3, 60px);
+      gap: 5px;
+      z-index: 10;
+    }
+    
+    .control-btn {
+      background: rgba(255, 255, 255, 0.2);
       border: 2px solid #fff;
-      box-shadow: 0 0 20px #000a;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+    }
+    
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+    
+    .control-btn:active {
+      background: rgba(255, 255, 255, 0.5);
+      transform: scale(0.95);
+    }
+    
+    .up-btn { grid-column: 2; grid-row: 1; }
+    .left-btn { grid-column: 1; grid-row: 2; }
+    .right-btn { grid-column: 3; grid-row: 2; }
+    .down-btn { grid-column: 2; grid-row: 3; }
+    
+    /* Nút bắn - góc phải */
+    .shoot-controls {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      display: none;
+      z-index: 10;
+    }
+    
+    .shoot-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(255, 235, 59, 0.3);
+      border: 3px solid #ffeb3b;
+      color: #ffeb3b;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+    }
+    
+    .shoot-btn:hover {
+      background: rgba(255, 235, 59, 0.5);
+      transform: scale(1.1);
+    }
+    
+    .shoot-btn:active {
+      background: rgba(255, 235, 59, 0.7);
+      transform: scale(0.9);
+    }
+    
+    /* Responsive cho màn hình nhỏ */
+    @media (max-width: 768px) {
+      .movement-controls {
+        grid-template-columns: repeat(3, 55px);
+        grid-template-rows: repeat(3, 55px);
+        bottom: 20px;
+        left: 20px;
+      }
+      
+      .control-btn {
+        font-size: 18px;
+      }
+      
+      .shoot-controls {
+        bottom: 20px;
+        right: 20px;
+      }
+      
+      .shoot-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .movement-controls {
+        grid-template-columns: repeat(3, 50px);
+        grid-template-rows: repeat(3, 50px);
+        bottom: 15px;
+        left: 15px;
+      }
+      
+      .control-btn {
+        font-size: 16px;
+      }
+      
+      .shoot-controls {
+        bottom: 15px;
+        right: 15px;
+      }
+      
+      .shoot-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
+    }
+    
+    @media (max-width: 360px) {
+      .movement-controls {
+        grid-template-columns: repeat(3, 45px);
+        grid-template-rows: repeat(3, 45px);
+        bottom: 10px;
+        left: 10px;
+      }
+      
+      .control-btn {
+        font-size: 14px;
+      }
+      
+      .shoot-controls {
+        bottom: 10px;
+        right: 10px;
+      }
+      
+      .shoot-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
     }
   </style>
 </head>
 <body>
-  <button id="startBtn" style="position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);font-size:2em;padding:0.5em 2em;z-index:2;">Bắt đầu</button>
-  <canvas id="gameCanvas" width="500" height="400" style="display:none;"></canvas>
+  <div class="game-container">
+    <button id="startBtn" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2em;padding:0.8em 2em;z-index:20;border:none;background:#4caf50;color:#fff;border-radius:15px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);">🎮 Bắt đầu</button>
+    <canvas id="gameCanvas" style="display:none;"></canvas>
+    
+    <!-- Điều khiển di chuyển - góc trái -->
+    <div class="movement-controls" id="movementControls">
+      <button class="control-btn up-btn" id="upBtn">↑</button>
+      <button class="control-btn left-btn" id="leftBtn">←</button>
+      <button class="control-btn right-btn" id="rightBtn">→</button>
+      <button class="control-btn down-btn" id="downBtn">↓</button>
+    </div>
+    
+    <!-- Nút bắn - góc phải -->
+    <div class="shoot-controls" id="shootControls">
+      <button class="shoot-btn" id="shootBtn">🔥</button>
+    </div>
+  </div>
+  
   <audio id="bgm" src="my-love-don-t-let-love-fade.mp3" loop></audio>
   <script>
 
@@ -30,16 +216,178 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const bgm = document.getElementById('bgm');
+    const movementControls = document.getElementById('movementControls');
+    const shootControls = document.getElementById('shootControls');
+    
+    // Thiết lập canvas fullscreen
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    
+    // Gọi resize khi tải trang và khi thay đổi kích thước
+    window.addEventListener('resize', function() {
+      if (gameStarted) {
+        resizeCanvas();
+      }
+    });
+    resizeCanvas();
 
     let gameStarted = false;
 
+    // Hệ thống bản đồ vô tận
+    const worldSystem = {
+      offsetX: 0,
+      offsetY: 0,
+      tileSize: 40,
+      terrain: [],
+      decorations: []
+    };
+
+    // Sinh địa hình và trang trí
+    function generateTerrain(startX, startY, width, height) {
+      for (let x = startX; x < startX + width; x++) {
+        for (let y = startY; y < startY + height; y++) {
+          let key = `${x},${y}`;
+          if (!worldSystem.terrain[key]) {
+            // Sinh địa hình cơ bản
+            let terrainType = 'grass';
+            if (Math.random() < 0.1) terrainType = 'dirt';
+            else if (Math.random() < 0.05) terrainType = 'stone';
+            
+            worldSystem.terrain[key] = {
+              type: terrainType,
+              x: x,
+              y: y
+            };
+            
+            // Sinh trang trí
+            if (Math.random() < 0.08) {
+              let decorationType = 'grass_tuft';
+              if (Math.random() < 0.3) decorationType = 'small_rock';
+              else if (Math.random() < 0.1) decorationType = 'tree';
+              else if (Math.random() < 0.2) decorationType = 'bush';
+              
+              worldSystem.decorations.push({
+                type: decorationType,
+                x: x * worldSystem.tileSize + Math.random() * worldSystem.tileSize,
+                y: y * worldSystem.tileSize + Math.random() * worldSystem.tileSize,
+                size: 0.5 + Math.random() * 0.5
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Vẽ địa hình
+    function drawTerrain() {
+      const startTileX = Math.floor(worldSystem.offsetX / worldSystem.tileSize) - 1;
+      const startTileY = Math.floor(worldSystem.offsetY / worldSystem.tileSize) - 1;
+      const endTileX = startTileX + Math.ceil(canvas.width / worldSystem.tileSize) + 2;
+      const endTileY = startTileY + Math.ceil(canvas.height / worldSystem.tileSize) + 2;
+      
+      // Sinh thêm địa hình nếu cần
+      generateTerrain(startTileX, startTileY, endTileX - startTileX, endTileY - startTileY);
+      
+      // Vẽ địa hình
+      for (let x = startTileX; x < endTileX; x++) {
+        for (let y = startTileY; y < endTileY; y++) {
+          let key = `${x},${y}`;
+          let terrain = worldSystem.terrain[key];
+          if (terrain) {
+            let screenX = x * worldSystem.tileSize - worldSystem.offsetX;
+            let screenY = y * worldSystem.tileSize - worldSystem.offsetY;
+            
+            switch (terrain.type) {
+              case 'grass':
+                ctx.fillStyle = '#4a7c59';
+                break;
+              case 'dirt':
+                ctx.fillStyle = '#8b4513';
+                break;
+              case 'stone':
+                ctx.fillStyle = '#696969';
+                break;
+            }
+            ctx.fillRect(screenX, screenY, worldSystem.tileSize, worldSystem.tileSize);
+          }
+        }
+      }
+    }
+
+    // Vẽ trang trí
+    function drawDecorations() {
+      for (let decoration of worldSystem.decorations) {
+        let screenX = decoration.x - worldSystem.offsetX;
+        let screenY = decoration.y - worldSystem.offsetY;
+        
+        // Chỉ vẽ nếu trong phạm vi màn hình
+        if (screenX > -50 && screenX < canvas.width + 50 && 
+            screenY > -50 && screenY < canvas.height + 50) {
+          
+          ctx.save();
+          let size = decoration.size * 20;
+          
+          switch (decoration.type) {
+            case 'grass_tuft':
+              ctx.fillStyle = '#228B22';
+              ctx.beginPath();
+              for (let i = 0; i < 5; i++) {
+                let angle = (i / 5) * Math.PI * 2;
+                let x = screenX + Math.cos(angle) * size * 0.3;
+                let y = screenY + Math.sin(angle) * size * 0.2;
+                ctx.lineTo(x, y);
+              }
+              ctx.fill();
+              break;
+              
+            case 'small_rock':
+              ctx.fillStyle = '#A0A0A0';
+              ctx.beginPath();
+              ctx.arc(screenX, screenY, size * 0.4, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#808080';
+              ctx.beginPath();
+              ctx.arc(screenX - size * 0.1, screenY - size * 0.1, size * 0.2, 0, Math.PI * 2);
+              ctx.fill();
+              break;
+              
+            case 'tree':
+              // Thân cây
+              ctx.fillStyle = '#8B4513';
+              ctx.fillRect(screenX - size * 0.1, screenY - size * 0.3, size * 0.2, size * 0.6);
+              // Lá cây
+              ctx.fillStyle = '#228B22';
+              ctx.beginPath();
+              ctx.arc(screenX, screenY - size * 0.3, size * 0.4, 0, Math.PI * 2);
+              ctx.fill();
+              break;
+              
+            case 'bush':
+              ctx.fillStyle = '#32CD32';
+              ctx.beginPath();
+              ctx.arc(screenX, screenY, size * 0.3, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#228B22';
+              ctx.beginPath();
+              ctx.arc(screenX - size * 0.1, screenY - size * 0.1, size * 0.2, 0, Math.PI * 2);
+              ctx.fill();
+              break;
+          }
+          ctx.restore();
+        }
+      }
+    }
 
     const tank = {
-        x: 220,
-        y: 300, // Đặt xe tăng người chơi ở gần cuối màn hình
+        x: 400, // Vị trí trên màn hình
+        y: 300, // Vị trí trên màn hình
         speed: 5,
         hp: 5,
-        maxHp: 5
+        maxHp: 5,
+        worldX: 400, // Vị trí thực trong thế giới
+        worldY: 300
     };
 
 
@@ -127,7 +475,17 @@ function spawnEnemy() {
   // enemy sẽ có hướng di chuyển ngẫu nhiên ban đầu
   const dx = Math.random() < 0.5 ? enemySpeed : -enemySpeed;
   const dy = 1.2; // tốc độ xuống chậm hơn để mượt
-  enemies.push({ x: x, y: -50, dx: dx, dy: dy });
+  // Thêm hệ thống máu cho xe tăng địch và vị trí thế giới
+  enemies.push({ 
+    x: x, 
+    y: -50, 
+    dx: dx, 
+    dy: dy, 
+    hp: 3, 
+    maxHp: 3,
+    worldX: x + worldSystem.offsetX,
+    worldY: -50 + worldSystem.offsetY
+  });
 }
 
     function clear() {
@@ -136,6 +494,11 @@ function spawnEnemy() {
 
 function update() {
   clear();
+  
+  // Vẽ bản đồ vô tận
+  drawTerrain();
+  drawDecorations();
+  
   // Hiệu ứng nổ cho tank người chơi
   if (typeof window.tankExplosions === 'undefined') window.tankExplosions = [];
 
@@ -165,47 +528,51 @@ function update() {
   } else {
     window.tankExplosions = [];
   }
-  // Smooth tank movement
-  if (keys['ArrowLeft']) tank.x = Math.max(0, tank.x - tank.speed);
-  if (keys['ArrowRight']) tank.x = Math.min(canvas.width - 60, tank.x + tank.speed);
-  if (keys['ArrowUp']) {
-    if (tank.y > 0) {
-      tank.y = Math.max(0, tank.y - tank.speed);
-    } else {
-      // Khi tank chạm mép trên, dịch toàn bộ đối tượng xuống
-      const scrollAmount = tank.speed;
-      // Dịch enemy
-      for (let i = 0; i < enemies.length; i++) {
-        enemies[i].y += scrollAmount;
-      }
-      // Dịch đạn người chơi
-      for (let i = 0; i < bullets.length; i++) {
-        bullets[i].y += scrollAmount;
-      }
-      // Dịch đạn enemy
-      for (let i = 0; i < enemyBullets.length; i++) {
-        enemyBullets[i].y += scrollAmount;
-      }
-      // Dịch hiệu ứng nổ
-      if (window.explosions) {
-        for (let i = 0; i < window.explosions.length; i++) {
-          window.explosions[i].y += scrollAmount;
-        }
-      }
-      if (window.tankHitExplosions) {
-        for (let i = 0; i < window.tankHitExplosions.length; i++) {
-          window.tankHitExplosions[i].y += scrollAmount;
-        }
-      }
-      // Tank vẫn ở y=0
-    }
+  
+  // Smooth tank movement với hệ thống thế giới vô tận
+  let newWorldX = tank.worldX;
+  let newWorldY = tank.worldY;
+  
+  if (keys['ArrowLeft']) {
+    newWorldX -= tank.speed;
   }
-  if (keys['ArrowDown']) tank.y = Math.min(canvas.height - 50, tank.y + tank.speed);
+  if (keys['ArrowRight']) {
+    newWorldX += tank.speed;
+  }
+  if (keys['ArrowUp']) {
+    newWorldY -= tank.speed;
+  }
+  if (keys['ArrowDown']) {
+    newWorldY += tank.speed;
+  }
+  
+  // Cập nhật vị trí thế giới
+  tank.worldX = newWorldX;
+  tank.worldY = newWorldY;
+  
+  // Giữ xe tăng ở trung tâm màn hình khi có thể
+  let targetX = canvas.width / 2 - 30; // trung tâm - nửa chiều rộng xe tăng
+  let targetY = canvas.height / 2 - 25; // trung tâm - nửa chiều cao xe tăng
+  
+  // Tính toán offset để giữ xe tăng ở vị trí mong muốn
+  // Cho phép xe tăng di chuyển tự do trong thế giới vô tận
+  worldSystem.offsetX = tank.worldX - targetX;
+  worldSystem.offsetY = tank.worldY - targetY;
+  
+  // Cập nhật vị trí xe tăng trên màn hình
+  tank.x = tank.worldX - worldSystem.offsetX;
+  tank.y = tank.worldY - worldSystem.offsetY;
+  
+  // Giới hạn xe tăng trong màn hình (chỉ khi cần thiết)
+  tank.x = Math.max(0, Math.min(canvas.width - 60, tank.x));
+  tank.y = Math.max(0, Math.min(canvas.height - 50, tank.y));
   // Shooting when holding space
   if ((keys[' '] || keys['Spacebar']) && shootCooldown <= 0) {
     bullets.push({
       x: tank.x + 30,
-      y: tank.y - 20
+      y: tank.y - 20,
+      worldX: tank.worldX + 30,
+      worldY: tank.worldY - 20
     });
     shootCooldown = 10; // frames between shots (adjust for faster/slower shooting)
   }
@@ -213,16 +580,21 @@ function update() {
 
   // Vẽ xe tăng người chơi với cột máu
   drawTank(tank.x, tank.y, '#4caf50', '#388e3c', false, tank.hp, tank.maxHp);
+  
   // Cập nhật và vẽ đạn người chơi
   for (let i = 0; i < bullets.length; i++) {
-    bullets[i].y -= bulletSpeed;
+    bullets[i].worldY -= bulletSpeed;
+    bullets[i].x = bullets[i].worldX - worldSystem.offsetX;
+    bullets[i].y = bullets[i].worldY - worldSystem.offsetY;
     drawBullet(bullets[i]);
   }
-  bullets = bullets.filter(b => b.y > -10);
+  bullets = bullets.filter(b => b.y > -10 && b.y < canvas.height + 10);
 
   // Cập nhật và vẽ đạn enemy
   for (let i = 0; i < enemyBullets.length; i++) {
-    enemyBullets[i].y += enemyBulletSpeed;
+    enemyBullets[i].worldY += enemyBulletSpeed;
+    enemyBullets[i].x = enemyBullets[i].worldX - worldSystem.offsetX;
+    enemyBullets[i].y = enemyBullets[i].worldY - worldSystem.offsetY;
     drawBullet(enemyBullets[i], '#ff5252');
   }
   // Kiểm tra va chạm đạn địch với tank người chơi
@@ -244,7 +616,7 @@ function update() {
       }
     }
   }
-  enemyBullets = enemyBullets.filter(b => b.y < canvas.height + 10);
+  enemyBullets = enemyBullets.filter(b => b.y > -10 && b.y < canvas.height + 10);
 
   // Vẽ hiệu ứng nổ nhỏ khi trúng đạn
   if (typeof window.tankHitExplosions === 'undefined') window.tankHitExplosions = [];
@@ -266,11 +638,17 @@ function update() {
         bullet.x > enemy.x && bullet.x < enemy.x + 60 &&
         bullet.y > enemy.y && bullet.y < enemy.y + 50
       ) {
-        // Thêm hiệu ứng nổ
-        explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
-        // Xóa đạn và xe tăng địch
-        enemies.splice(i, 1);
+        // Giảm máu xe tăng địch
+        enemy.hp = Math.max(0, enemy.hp - 1);
+        
+        // Xóa đạn
         bullets.splice(j, 1);
+        
+        // Nếu máu về 0 thì thêm hiệu ứng nổ và xóa xe tăng
+        if (enemy.hp <= 0) {
+          explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+          enemies.splice(i, 1);
+        }
         break;
       }
     }
@@ -279,30 +657,35 @@ function update() {
   // Cập nhật và vẽ quân địch
   for (let i = 0; i < enemies.length; i++) {
     let enemy = enemies[i];
+    
+    // Cập nhật vị trí world
+    enemy.worldX += enemy.dx;
+    enemy.worldY += enemy.dy;
+    
+    // Cập nhật vị trí màn hình
+    enemy.x = enemy.worldX - worldSystem.offsetX;
+    enemy.y = enemy.worldY - worldSystem.offsetY;
+    
     const followRange = 80;
     const speed = Math.abs(enemy.dx);
+    
     // Nếu tank ở gần trục x và enemy còn phía trên tank, thì dí theo
     if (Math.abs((enemy.x + 30) - (tank.x + 30)) < followRange && enemy.y < tank.y + 50) {
       // Di chuyển mượt về phía tank
-      if (enemy.x + 30 < tank.x + 30 - 2) enemy.x += speed;
-      else if (enemy.x + 30 > tank.x + 30 + 2) enemy.x -= speed;
-      // Luôn tiến xuống
-      enemy.y += enemy.dy;
-    } else {
-      // Di chuyển bình thường
-      enemy.x += enemy.dx;
-      enemy.y += enemy.dy;
+      if (enemy.worldX + 30 < tank.worldX + 30 - 2) {
+        enemy.worldX += speed;
+        enemy.dx = Math.abs(enemy.dx);
+      } else if (enemy.worldX + 30 > tank.worldX + 30 + 2) {
+        enemy.worldX -= speed;
+        enemy.dx = -Math.abs(enemy.dx);
+      }
     }
-    // Đổi hướng khi chạm biên ngang
-    if (enemy.x < 0) {
-      enemy.x = 0;
-      enemy.dx *= -1;
-    } else if (enemy.x > canvas.width - 60) {
-      enemy.x = canvas.width - 60;
-      enemy.dx *= -1;
+    
+    // Vẽ xe tăng địch nếu trong phạm vi màn hình
+    if (enemy.x > -70 && enemy.x < canvas.width + 70 && 
+        enemy.y > -70 && enemy.y < canvas.height + 70) {
+      drawTank(enemy.x, enemy.y, '#2196f3', '#1565c0', true, enemy.hp, enemy.maxHp);
     }
-    // Vẽ xe tăng địch: màu xanh dương, nòng pháo hướng xuống
-    drawTank(enemy.x, enemy.y, '#2196f3', '#1565c0', true);
 
     // Enemy bắn đạn định kỳ
     if (!enemy.shootTimer) enemy.shootTimer = Math.floor(Math.random() * 60) + 40; // random delay
@@ -310,13 +693,18 @@ function update() {
     if (enemy.shootTimer <= 0) {
       enemyBullets.push({
         x: enemy.x + 30,
-        y: enemy.y + 50
+        y: enemy.y + 50,
+        worldX: enemy.worldX + 30,
+        worldY: enemy.worldY + 50
       });
       enemy.shootTimer = Math.floor(Math.random() * 60) + 40; // random lại cho lần sau
     }
   }
-  // Xóa quân địch ra khỏi mảng nếu ra khỏi màn hình
-  enemies = enemies.filter(e => e.y > -70 && e.y < canvas.height + 70);
+  // Xóa quân địch ra khỏi mảng nếu ra khỏi khu vực rộng hơn
+  enemies = enemies.filter(e => 
+    e.worldX > worldSystem.offsetX - 200 && e.worldX < worldSystem.offsetX + canvas.width + 200 &&
+    e.worldY > worldSystem.offsetY - 200 && e.worldY < worldSystem.offsetY + canvas.height + 200
+  );
 
   // Vẽ hiệu ứng nổ
   if (typeof window.explosions === 'undefined') window.explosions = [];
@@ -331,16 +719,20 @@ function update() {
   // Sinh quân địch mới theo thời gian
   frameCount++;
   if (frameCount % enemySpawnInterval === 0) {
-    // Nếu tank ở gần mép trên, sinh enemy ở phía trên màn hình
-    if (tank.y <= 0) {
-      // Sinh enemy ở ngoài vùng nhìn thấy
-      const x = Math.floor(Math.random() * (canvas.width - 60));
-      const dx = Math.random() < 0.5 ? enemySpeed : -enemySpeed;
-      const dy = 1.2;
-      enemies.push({ x: x, y: -100, dx: dx, dy: dy });
-    } else {
-      spawnEnemy();
-    }
+    // Sinh enemy ở phía trên vùng nhìn thấy
+    const x = Math.floor(Math.random() * (canvas.width - 60));
+    const dx = Math.random() < 0.5 ? enemySpeed : -enemySpeed;
+    const dy = 1.2;
+    enemies.push({ 
+      x: x, 
+      y: -100, 
+      dx: dx, 
+      dy: dy, 
+      hp: 3, 
+      maxHp: 3,
+      worldX: x + worldSystem.offsetX,
+      worldY: -100 + worldSystem.offsetY
+    });
   }
 }
 
@@ -356,6 +748,67 @@ function update() {
 
     // Shooting cooldown
     let shootCooldown = 0;
+    
+    // Khởi tạo hệ thống thế giới
+    function initWorldSystem() {
+      // Đặt offset ban đầu để xe tăng ở giữa màn hình
+      worldSystem.offsetX = tank.worldX - (canvas.width / 2 - 30);
+      worldSystem.offsetY = tank.worldY - (canvas.height / 2 - 25);
+      
+      // Cập nhật vị trí xe tăng trên màn hình
+      tank.x = tank.worldX - worldSystem.offsetX;
+      tank.y = tank.worldY - worldSystem.offsetY;
+    }
+
+    // Điều khiển bằng nút
+    const controlButtons = {
+      up: document.getElementById('upBtn'),
+      left: document.getElementById('leftBtn'),
+      right: document.getElementById('rightBtn'),
+      down: document.getElementById('downBtn'),
+      shoot: document.getElementById('shootBtn')
+    };
+
+    // Xử lý sự kiện nút nhấn
+    function setupControlButtons() {
+      // Nút di chuyển
+      controlButtons.up.addEventListener('mousedown', () => keys['ArrowUp'] = true);
+      controlButtons.up.addEventListener('mouseup', () => keys['ArrowUp'] = false);
+      controlButtons.up.addEventListener('mouseleave', () => keys['ArrowUp'] = false);
+      
+      controlButtons.left.addEventListener('mousedown', () => keys['ArrowLeft'] = true);
+      controlButtons.left.addEventListener('mouseup', () => keys['ArrowLeft'] = false);
+      controlButtons.left.addEventListener('mouseleave', () => keys['ArrowLeft'] = false);
+      
+      controlButtons.right.addEventListener('mousedown', () => keys['ArrowRight'] = true);
+      controlButtons.right.addEventListener('mouseup', () => keys['ArrowRight'] = false);
+      controlButtons.right.addEventListener('mouseleave', () => keys['ArrowRight'] = false);
+      
+      controlButtons.down.addEventListener('mousedown', () => keys['ArrowDown'] = true);
+      controlButtons.down.addEventListener('mouseup', () => keys['ArrowDown'] = false);
+      controlButtons.down.addEventListener('mouseleave', () => keys['ArrowDown'] = false);
+      
+      // Nút bắn
+      controlButtons.shoot.addEventListener('mousedown', () => keys[' '] = true);
+      controlButtons.shoot.addEventListener('mouseup', () => keys[' '] = false);
+      controlButtons.shoot.addEventListener('mouseleave', () => keys[' '] = false);
+      
+      // Hỗ trợ touch cho mobile
+      controlButtons.up.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowUp'] = true; });
+      controlButtons.up.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowUp'] = false; });
+      
+      controlButtons.left.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowLeft'] = true; });
+      controlButtons.left.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowLeft'] = false; });
+      
+      controlButtons.right.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowRight'] = true; });
+      controlButtons.right.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowRight'] = false; });
+      
+      controlButtons.down.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowDown'] = true; });
+      controlButtons.down.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowDown'] = false; });
+      
+      controlButtons.shoot.addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
+      controlButtons.shoot.addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
+    }
 
     function gameLoop() {
       if (gameStarted) {
@@ -366,8 +819,20 @@ function update() {
 
 startBtn.addEventListener('click', function() {
       startBtn.style.display = 'none';
-      canvas.style.display = '';
+      canvas.style.display = 'block';
+      movementControls.style.display = 'grid';
+      shootControls.style.display = 'block';
       gameStarted = true;
+      
+      // Đảm bảo canvas fullscreen
+      resizeCanvas();
+      
+      // Khởi tạo hệ thống thế giới
+      initWorldSystem();
+      
+      // Thiết lập điều khiển nút
+      setupControlButtons();
+      
       bgm.currentTime = 0;
       // Try to play audio, fallback if blocked
       bgm.play().then(() => {
