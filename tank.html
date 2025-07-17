@@ -470,21 +470,25 @@ const enemySpawnInterval = 120; // frames
 let frameCount = 0;
 
 function spawnEnemy() {
-  // Random x position, y = -50 (trên màn hình), random hướng di chuyển
+  // Random x position trong thế giới, spawn phía trên tank
   const x = Math.floor(Math.random() * (canvas.width - 60));
+  const worldX = x + worldSystem.offsetX;
+  const worldY = worldSystem.offsetY - 100; // Spawn phía trên vùng nhìn thấy
+  
   // enemy sẽ có hướng di chuyển ngẫu nhiên ban đầu
   const dx = Math.random() < 0.5 ? enemySpeed : -enemySpeed;
-  const dy = 1.2; // tốc độ xuống chậm hơn để mượt
+  const dy = 1.5; // tốc độ xuống ổn định
+  
   // Thêm hệ thống máu cho xe tăng địch và vị trí thế giới
   enemies.push({ 
     x: x, 
-    y: -50, 
+    y: -100, 
     dx: dx, 
     dy: dy, 
     hp: 3, 
     maxHp: 3,
-    worldX: x + worldSystem.offsetX,
-    worldY: -50 + worldSystem.offsetY
+    worldX: worldX,
+    worldY: worldY
   });
 }
 
@@ -658,28 +662,42 @@ function update() {
   for (let i = 0; i < enemies.length; i++) {
     let enemy = enemies[i];
     
-    // Cập nhật vị trí world
-    enemy.worldX += enemy.dx;
-    enemy.worldY += enemy.dy;
+    const followRange = 80;
+    const speed = Math.abs(enemy.dx);
+    
+    // Tính vị trí màn hình hiện tại để kiểm tra logic
+    let currentScreenX = enemy.worldX - worldSystem.offsetX;
+    let currentScreenY = enemy.worldY - worldSystem.offsetY;
+    
+    // Logic di chuyển mượt mà
+    let moveX = enemy.dx;
+    let moveY = enemy.dy;
+    
+    // Nếu tank ở gần trục x và enemy còn phía trên tank, thì dí theo
+    if (Math.abs((currentScreenX + 30) - (tank.x + 30)) < followRange && currentScreenY < tank.y + 50) {
+      // Di chuyển mượt về phía tank với dead zone để tránh rung
+      const distance = (tank.worldX + 30) - (enemy.worldX + 30);
+      if (Math.abs(distance) > 10) { // Dead zone 10 pixels
+        if (distance > 0) {
+          moveX = Math.min(speed, Math.abs(distance) * 0.1); // Di chuyển về phía phải
+        } else {
+          moveX = -Math.min(speed, Math.abs(distance) * 0.1); // Di chuyển về phía trái
+        }
+      } else {
+        moveX = 0; // Đứng yên khi trong dead zone
+      }
+    }
+    
+    // Cập nhật vị trí world một cách mượt mà
+    enemy.worldX += moveX;
+    enemy.worldY += moveY;
     
     // Cập nhật vị trí màn hình
     enemy.x = enemy.worldX - worldSystem.offsetX;
     enemy.y = enemy.worldY - worldSystem.offsetY;
     
-    const followRange = 80;
-    const speed = Math.abs(enemy.dx);
-    
-    // Nếu tank ở gần trục x và enemy còn phía trên tank, thì dí theo
-    if (Math.abs((enemy.x + 30) - (tank.x + 30)) < followRange && enemy.y < tank.y + 50) {
-      // Di chuyển mượt về phía tank
-      if (enemy.worldX + 30 < tank.worldX + 30 - 2) {
-        enemy.worldX += speed;
-        enemy.dx = Math.abs(enemy.dx);
-      } else if (enemy.worldX + 30 > tank.worldX + 30 + 2) {
-        enemy.worldX -= speed;
-        enemy.dx = -Math.abs(enemy.dx);
-      }
-    }
+    // Cập nhật hướng di chuyển cho frame tiếp theo
+    enemy.dx = moveX;
     
     // Vẽ xe tăng địch nếu trong phạm vi màn hình
     if (enemy.x > -70 && enemy.x < canvas.width + 70 && 
@@ -687,8 +705,8 @@ function update() {
       drawTank(enemy.x, enemy.y, '#2196f3', '#1565c0', true, enemy.hp, enemy.maxHp);
     }
 
-    // Enemy bắn đạn định kỳ
-    if (!enemy.shootTimer) enemy.shootTimer = Math.floor(Math.random() * 60) + 40; // random delay
+    // Enemy bắn đạn định kỳ với tần suất ổn định
+    if (!enemy.shootTimer) enemy.shootTimer = Math.floor(Math.random() * 90) + 60; // Tăng thời gian delay
     enemy.shootTimer--;
     if (enemy.shootTimer <= 0) {
       enemyBullets.push({
@@ -697,7 +715,7 @@ function update() {
         worldX: enemy.worldX + 30,
         worldY: enemy.worldY + 50
       });
-      enemy.shootTimer = Math.floor(Math.random() * 60) + 40; // random lại cho lần sau
+      enemy.shootTimer = Math.floor(Math.random() * 90) + 60; // Tăng thời gian delay
     }
   }
   // Xóa quân địch ra khỏi mảng nếu ra khỏi khu vực rộng hơn
@@ -719,20 +737,7 @@ function update() {
   // Sinh quân địch mới theo thời gian
   frameCount++;
   if (frameCount % enemySpawnInterval === 0) {
-    // Sinh enemy ở phía trên vùng nhìn thấy
-    const x = Math.floor(Math.random() * (canvas.width - 60));
-    const dx = Math.random() < 0.5 ? enemySpeed : -enemySpeed;
-    const dy = 1.2;
-    enemies.push({ 
-      x: x, 
-      y: -100, 
-      dx: dx, 
-      dy: dy, 
-      hp: 3, 
-      maxHp: 3,
-      worldX: x + worldSystem.offsetX,
-      worldY: -100 + worldSystem.offsetY
-    });
+    spawnEnemy();
   }
 }
 
