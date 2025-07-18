@@ -45,49 +45,47 @@
       display: block;
     }
     
-    /* Điều khiển di chuyển - góc trái */
-    .movement-controls {
+    /* Joystick - góc trái */
+    .joystick-container {
       position: fixed;
       bottom: 30px;
       left: 30px;
       display: none;
-      grid-template-columns: repeat(3, 60px);
-      grid-template-rows: repeat(3, 60px);
-      gap: 5px;
       z-index: 10;
+      width: 150px;
+      height: 150px;
+      touch-action: none;
     }
     
-    .control-btn {
+    .joystick-base {
+      position: absolute;
+      width: 100%;
+      height: 100%;
       background: rgba(255, 255, 255, 0.2);
       border: 2px solid #fff;
-      border-radius: 12px;
-      color: #fff;
-      font-size: 20px;
-      font-weight: bold;
-      cursor: pointer;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      user-select: none;
-      transition: all 0.1s;
-      touch-action: manipulation;
       backdrop-filter: blur(5px);
     }
     
-    .control-btn:hover {
-      background: rgba(255, 255, 255, 0.3);
-      transform: scale(1.05);
-    }
-    
-    .control-btn:active {
+    .joystick-handle {
+      position: absolute;
+      width: 60px;
+      height: 60px;
       background: rgba(255, 255, 255, 0.5);
-      transform: scale(0.95);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
     }
-    
-    .up-btn { grid-column: 2; grid-row: 1; }
-    .left-btn { grid-column: 1; grid-row: 2; }
-    .right-btn { grid-column: 3; grid-row: 2; }
-    .down-btn { grid-column: 2; grid-row: 3; }
     
     /* Nút bắn - góc phải */
     .shoot-controls {
@@ -128,15 +126,16 @@
     
     /* Responsive cho màn hình nhỏ */
     @media (max-width: 768px) {
-      .movement-controls {
-        grid-template-columns: repeat(3, 55px);
-        grid-template-rows: repeat(3, 55px);
+      .joystick-container {
+        width: 130px;
+        height: 130px;
         bottom: 20px;
         left: 20px;
       }
       
-      .control-btn {
-        font-size: 18px;
+      .joystick-handle {
+        width: 50px;
+        height: 50px;
       }
       
       .shoot-controls {
@@ -152,15 +151,16 @@
     }
     
     @media (max-width: 480px) {
-      .movement-controls {
-        grid-template-columns: repeat(3, 50px);
-        grid-template-rows: repeat(3, 50px);
+      .joystick-container {
+        width: 120px;
+        height: 120px;
         bottom: 15px;
         left: 15px;
       }
       
-      .control-btn {
-        font-size: 16px;
+      .joystick-handle {
+        width: 45px;
+        height: 45px;
       }
       
       .shoot-controls {
@@ -176,15 +176,16 @@
     }
     
     @media (max-width: 360px) {
-      .movement-controls {
-        grid-template-columns: repeat(3, 45px);
-        grid-template-rows: repeat(3, 45px);
+      .joystick-container {
+        width: 100px;
+        height: 100px;
         bottom: 10px;
         left: 10px;
       }
       
-      .control-btn {
-        font-size: 14px;
+      .joystick-handle {
+        width: 40px;
+        height: 40px;
       }
       
       .shoot-controls {
@@ -205,12 +206,11 @@
     <button id="startBtn" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2em;padding:0.8em 2em;z-index:20;border:none;background:#4caf50;color:#fff;border-radius:15px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);">🎮 Bắt đầu</button>
     <canvas id="gameCanvas" style="display:none;"></canvas>
     
-    <!-- Điều khiển di chuyển - góc trái -->
-    <div class="movement-controls" id="movementControls">
-      <button class="control-btn up-btn" id="upBtn">↑</button>
-      <button class="control-btn left-btn" id="leftBtn">←</button>
-      <button class="control-btn right-btn" id="rightBtn">→</button>
-      <button class="control-btn down-btn" id="downBtn">↓</button>
+    <!-- Joystick - góc trái -->
+    <div class="joystick-container" id="joystickContainer">
+      <div class="joystick-base" id="joystickBase">
+        <div class="joystick-handle" id="joystickHandle"></div>
+      </div>
     </div>
     
     <!-- Nút bắn - góc phải -->
@@ -237,7 +237,9 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const bgm = document.getElementById('bgm');
-    const movementControls = document.getElementById('movementControls');
+    const joystickContainer = document.getElementById('joystickContainer');
+    const joystickBase = document.getElementById('joystickBase');
+    const joystickHandle = document.getElementById('joystickHandle');
     const shootControls = document.getElementById('shootControls');
     
     // Thiết lập canvas fullscreen
@@ -601,7 +603,7 @@ function resetGame() {
   let btn = document.getElementById('replayBtn');
   if (btn) btn.style.display = 'none';
   // Bật lại controls nếu có
-  if (movementControls) movementControls.style.display = 'grid';
+  if (joystickContainer) joystickContainer.style.display = 'block';
   if (shootControls) shootControls.style.display = 'block';
   // Bật lại nhạc
   bgm.currentTime = 0;
@@ -845,54 +847,137 @@ function resetGame() {
       tank.y = tank.worldY - worldSystem.offsetY;
     }
 
-    // Điều khiển bằng nút
-    const controlButtons = {
-      up: document.getElementById('upBtn'),
-      left: document.getElementById('leftBtn'),
-      right: document.getElementById('rightBtn'),
-      down: document.getElementById('downBtn'),
-      shoot: document.getElementById('shootBtn')
+    // Joystick và nút bắn
+    const joystick = {
+      active: false,
+      baseX: 0,
+      baseY: 0,
+      handleX: 0,
+      handleY: 0,
+      limitRadius: 0,
+      dx: 0,
+      dy: 0
     };
-
-    // Xử lý sự kiện nút nhấn
-    function setupControlButtons() {
-      // Nút di chuyển
-      controlButtons.up.addEventListener('mousedown', () => keys['ArrowUp'] = true);
-      controlButtons.up.addEventListener('mouseup', () => keys['ArrowUp'] = false);
-      controlButtons.up.addEventListener('mouseleave', () => keys['ArrowUp'] = false);
+    
+    const shootButton = document.getElementById('shootBtn');
+    
+    // Xử lý sự kiện điều khiển
+    function setupControls() {
+      // Khởi tạo joystick
+      const baseRect = joystickBase.getBoundingClientRect();
+      joystick.baseX = baseRect.left + baseRect.width / 2;
+      joystick.baseY = baseRect.top + baseRect.height / 2;
+      joystick.limitRadius = baseRect.width / 2 - joystickHandle.offsetWidth / 2;
       
-      controlButtons.left.addEventListener('mousedown', () => keys['ArrowLeft'] = true);
-      controlButtons.left.addEventListener('mouseup', () => keys['ArrowLeft'] = false);
-      controlButtons.left.addEventListener('mouseleave', () => keys['ArrowLeft'] = false);
+      // Đặt handle vào giữa
+      joystick.handleX = joystick.baseX;
+      joystick.handleY = joystick.baseY;
+      updateJoystickPosition();
       
-      controlButtons.right.addEventListener('mousedown', () => keys['ArrowRight'] = true);
-      controlButtons.right.addEventListener('mouseup', () => keys['ArrowRight'] = false);
-      controlButtons.right.addEventListener('mouseleave', () => keys['ArrowRight'] = false);
+      // Mouse events for joystick
+      joystickHandle.addEventListener('mousedown', startJoystick);
+      document.addEventListener('mousemove', moveJoystick);
+      document.addEventListener('mouseup', endJoystick);
       
-      controlButtons.down.addEventListener('mousedown', () => keys['ArrowDown'] = true);
-      controlButtons.down.addEventListener('mouseup', () => keys['ArrowDown'] = false);
-      controlButtons.down.addEventListener('mouseleave', () => keys['ArrowDown'] = false);
+      // Touch events for joystick
+      joystickHandle.addEventListener('touchstart', startJoystick);
+      document.addEventListener('touchmove', moveJoystick);
+      document.addEventListener('touchend', endJoystick);
+      document.addEventListener('touchcancel', endJoystick);
       
       // Nút bắn
-      controlButtons.shoot.addEventListener('mousedown', () => keys[' '] = true);
-      controlButtons.shoot.addEventListener('mouseup', () => keys[' '] = false);
-      controlButtons.shoot.addEventListener('mouseleave', () => keys[' '] = false);
+      shootButton.addEventListener('mousedown', () => keys[' '] = true);
+      shootButton.addEventListener('mouseup', () => keys[' '] = false);
+      shootButton.addEventListener('mouseleave', () => keys[' '] = false);
       
-      // Hỗ trợ touch cho mobile
-      controlButtons.up.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowUp'] = true; });
-      controlButtons.up.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowUp'] = false; });
+      shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
+      shootButton.addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
+    }
+    
+    function startJoystick(e) {
+      e.preventDefault();
+      joystick.active = true;
       
-      controlButtons.left.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowLeft'] = true; });
-      controlButtons.left.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowLeft'] = false; });
+      // Recalculate base position in case of screen resize
+      const baseRect = joystickBase.getBoundingClientRect();
+      joystick.baseX = baseRect.left + baseRect.width / 2;
+      joystick.baseY = baseRect.top + baseRect.height / 2;
+      joystick.limitRadius = baseRect.width / 2 - joystickHandle.offsetWidth / 2;
+    }
+    
+    function moveJoystick(e) {
+      if (!joystick.active) return;
+      e.preventDefault();
       
-      controlButtons.right.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowRight'] = true; });
-      controlButtons.right.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowRight'] = false; });
+      let clientX, clientY;
       
-      controlButtons.down.addEventListener('touchstart', (e) => { e.preventDefault(); keys['ArrowDown'] = true; });
-      controlButtons.down.addEventListener('touchend', (e) => { e.preventDefault(); keys['ArrowDown'] = false; });
+      if (e.type === 'touchmove') {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
       
-      controlButtons.shoot.addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
-      controlButtons.shoot.addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
+      // Calculate distance from center
+      let dx = clientX - joystick.baseX;
+      let dy = clientY - joystick.baseY;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Limit to circle
+      if (distance > joystick.limitRadius) {
+        dx = dx * joystick.limitRadius / distance;
+        dy = dy * joystick.limitRadius / distance;
+      }
+      
+      // Update handle position
+      joystick.handleX = joystick.baseX + dx;
+      joystick.handleY = joystick.baseY + dy;
+      
+      // Update joystick values for game controls
+      joystick.dx = dx / joystick.limitRadius; // -1 to 1
+      joystick.dy = dy / joystick.limitRadius; // -1 to 1
+      
+      // Update visual position
+      updateJoystickPosition();
+      
+      // Update key states based on joystick position
+      updateKeyStates();
+    }
+    
+    function endJoystick(e) {
+      if (!joystick.active) return;
+      e.preventDefault();
+      joystick.active = false;
+      
+      // Reset joystick to center
+      joystick.handleX = joystick.baseX;
+      joystick.handleY = joystick.baseY;
+      joystick.dx = 0;
+      joystick.dy = 0;
+      
+      // Update visual position
+      updateJoystickPosition();
+      
+      // Reset all direction keys
+      keys['ArrowUp'] = false;
+      keys['ArrowDown'] = false;
+      keys['ArrowLeft'] = false;
+      keys['ArrowRight'] = false;
+    }
+    
+    function updateJoystickPosition() {
+      joystickHandle.style.transform = `translate(${joystick.handleX - joystick.baseX}px, ${joystick.handleY - joystick.baseY}px)`;
+    }
+    
+    function updateKeyStates() {
+      // Convert joystick position to key presses
+      const deadzone = 0.3; // Ignore small movements
+      
+      keys['ArrowUp'] = joystick.dy < -deadzone;
+      keys['ArrowDown'] = joystick.dy > deadzone;
+      keys['ArrowLeft'] = joystick.dx < -deadzone;
+      keys['ArrowRight'] = joystick.dx > deadzone;
     }
 
     function gameLoop() {
@@ -905,7 +990,7 @@ function resetGame() {
 startBtn.addEventListener('click', function() {
       startBtn.style.display = 'none';
       canvas.style.display = 'block';
-      movementControls.style.display = 'grid';
+      joystickContainer.style.display = 'block';
       shootControls.style.display = 'block';
       gameStarted = true;
       
@@ -915,8 +1000,8 @@ startBtn.addEventListener('click', function() {
       // Khởi tạo hệ thống thế giới
       initWorldSystem();
       
-      // Thiết lập điều khiển nút
-      setupControlButtons();
+      // Thiết lập điều khiển joystick
+      setupControls();
       
       bgm.currentTime = 0;
       // Try to play audio, fallback if blocked
