@@ -636,6 +636,228 @@ function update() {
     // Hiện nút chơi lại
     showReplayButton();
     return;
+  }
+  
+  // Smooth tank movement với hệ thống thế giới vô tận
+  let newWorldX = tank.worldX;
+  let newWorldY = tank.worldY;
+  
+  if (keys['ArrowLeft']) {
+    newWorldX -= tank.speed;
+  }
+  if (keys['ArrowRight']) {
+    newWorldX += tank.speed;
+  }
+  if (keys['ArrowUp']) {
+    newWorldY -= tank.speed;
+  }
+  if (keys['ArrowDown']) {
+    newWorldY += tank.speed;
+  }
+  
+  // Cập nhật vị trí thế giới
+  tank.worldX = newWorldX;
+  tank.worldY = newWorldY;
+  
+  // Giữ xe tăng ở trung tâm màn hình khi có thể
+  let targetScreenX = canvas.width / 2 - 30;
+  let targetScreenY = canvas.height / 2 - 25;
+  
+  // Cập nhật offset để xe tăng luôn ở giữa
+  worldSystem.offsetX = tank.worldX - targetScreenX;
+  worldSystem.offsetY = tank.worldY - targetScreenY;
+  
+  // Cập nhật vị trí xe tăng trên màn hình
+  tank.x = tank.worldX - worldSystem.offsetX;
+  tank.y = tank.worldY - worldSystem.offsetY;
+
+  // Bắn đạn
+  if (keys[' ']) {
+    bullets.push({ x: tank.x + 30, y: tank.y, worldX: tank.worldX + 30, worldY: tank.worldY });
+    keys[' '] = false; // Chỉ bắn một viên mỗi lần nhấn
+  }
+
+  // Cập nhật đạn của người chơi
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    let bullet = bullets[i];
+    bullet.worldY -= bulletSpeed;
+    bullet.y = bullet.worldY - worldSystem.offsetY;
+    
+    // Xóa đạn nếu ra khỏi màn hình
+    if (bullet.y < -10) {
+      bullets.splice(i, 1);
+    }
+  }
+
+  // Spawn enemies
+  frameCount++;
+  if (frameCount % enemySpawnInterval === 0) {
+    spawnEnemy();
+  }
+
+  // Cập nhật enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let enemy = enemies[i];
+    
+    // Cập nhật vị trí thế giới
+    enemy.worldX += enemy.dx;
+    enemy.worldY += enemy.dy;
+    
+    // Cập nhật vị trí trên màn hình
+    enemy.x = enemy.worldX - worldSystem.offsetX;
+    enemy.y = enemy.worldY - worldSystem.offsetY;
+    
+    // Đổi hướng khi chạm biên
+    if (enemy.x <= 0 || enemy.x >= canvas.width - 60) {
+      enemy.dx = -enemy.dx;
+    }
+    
+    // Xóa enemy nếu ra khỏi màn hình dưới
+    if (enemy.y > canvas.height + 100) {
+      enemies.splice(i, 1);
+      continue;
+    }
+    
+    // Enemy bắn đạn ngẫu nhiên
+    if (Math.random() < 0.01) {
+      enemyBullets.push({ 
+        x: enemy.x + 30, 
+        y: enemy.y + 70,
+        worldX: enemy.worldX + 30,
+        worldY: enemy.worldY + 70
+      });
+    }
+  }
+
+  // Cập nhật đạn của enemy
+  for (let i = enemyBullets.length - 1; i >= 0; i--) {
+    let bullet = enemyBullets[i];
+    bullet.worldY += enemyBulletSpeed;
+    bullet.y = bullet.worldY - worldSystem.offsetY;
+    
+    // Xóa đạn nếu ra khỏi màn hình
+    if (bullet.y > canvas.height + 10) {
+      enemyBullets.splice(i, 1);
+    }
+  }
+
+  // Kiểm tra va chạm đạn người chơi với enemies
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let bullet = bullets[i];
+      let enemy = enemies[j];
+      
+      if (bullet && enemy && 
+          bullet.x > enemy.x && bullet.x < enemy.x + 60 &&
+          bullet.y > enemy.y && bullet.y < enemy.y + 70) {
+        
+        // Giảm máu enemy
+        enemy.hp--;
+        
+        // Thêm hiệu ứng nổ
+        if (typeof window.explosions === 'undefined') window.explosions = [];
+        window.explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+        
+        // Xóa đạn
+        bullets.splice(i, 1);
+        
+        // Nếu máu về 0 thì thêm hiệu ứng nổ và xóa xe tăng
+        if (enemy.hp <= 0) {
+          explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+          enemies.splice(j, 1);
+          
+          // Tăng số quân địch đã tiêu diệt
+          victorySystem.enemiesKilled++;
+          
+          // Kiểm tra điều kiện chiến thắng
+          if (victorySystem.enemiesKilled >= victorySystem.targetKills) {
+            victorySystem.gameWon = true;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // Kiểm tra va chạm đạn enemy với tank người chơi
+  for (let i = enemyBullets.length - 1; i >= 0; i--) {
+    let bullet = enemyBullets[i];
+    
+    if (bullet.x > tank.x && bullet.x < tank.x + 60 &&
+        bullet.y > tank.y && bullet.y < tank.y + 70) {
+      
+      // Giảm máu tank
+      tank.hp--;
+      
+      // Thêm hiệu ứng nổ khi tank bị trúng
+      if (typeof window.tankHitExplosions === 'undefined') window.tankHitExplosions = [];
+      window.tankHitExplosions.push({ x: tank.x, y: tank.y, time: 0 });
+      
+      // Xóa đạn
+      enemyBullets.splice(i, 1);
+    }
+  }
+
+  // Vẽ hiệu ứng nổ khi tank bị trúng
+  if (typeof window.tankHitExplosions !== 'undefined') {
+    for (let i = window.tankHitExplosions.length - 1; i >= 0; i--) {
+      let ex = window.tankHitExplosions[i];
+      if (ex.time <= 15) drawExplosion(ex.x, ex.y);
+      ex.time++;
+      if (ex.time > 15) window.tankHitExplosions.splice(i, 1);
+    }
+  }
+
+  // Vẽ tank người chơi (chỉ khi còn sống)
+  if (tank.hp > 0) {
+    drawTank(tank.x, tank.y, '#4caf50', '#388e3c', false, tank.hp, tank.maxHp);
+  }
+
+  // Vẽ enemies
+  for (let enemy of enemies) {
+    drawTank(enemy.x, enemy.y, '#f44336', '#d32f2f', true, enemy.hp, enemy.maxHp);
+  }
+
+  // Vẽ đạn của người chơi
+  for (let bullet of bullets) {
+    drawBullet(bullet, '#ffeb3b');
+  }
+
+  // Vẽ đạn của enemy
+  for (let bullet of enemyBullets) {
+    drawBullet(bullet, '#f44336');
+  }
+
+  // Vẽ hiệu ứng nổ
+  if (typeof window.explosions !== 'undefined') {
+    for (let i = window.explosions.length - 1; i >= 0; i--) {
+      let ex = window.explosions[i];
+      if (ex.time <= 30) drawExplosion(ex.x, ex.y);
+      ex.time++;
+      if (ex.time > 30) window.explosions.splice(i, 1);
+    }
+  }
+
+  // Hiển thị thông tin game
+  ctx.save();
+  ctx.font = 'bold 1.2em Arial';
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 3;
+  ctx.fillText(`HP: ${tank.hp}/${tank.maxHp}`, 20, 20);
+  ctx.fillText(`Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, 20, 40);
+  ctx.restore();
+
+  // Hệ thống bình nhiên liệu
+  if (fuelSystem.currentCooldown > 0) {
+    fuelSystem.currentCooldown--;
+    if (fuelSystem.currentCooldown <= 0) {
+      fuelSystem.isReady = true;
+    }
+    updateFuelButton();
+  }
+}
+
 // Thêm nút chơi lại
 function showReplayButton() {
   let btn = document.getElementById('replayBtn');
@@ -722,29 +944,238 @@ function resetGame() {
   // Chạy lại game loop
   requestAnimationFrame(gameLoop);
 }
-  } else {
-    window.tankExplosions = [];
-  }
-  
-  // Smooth tank movement với hệ thống thế giới vô tận
-  let newWorldX = tank.worldX;
-  let newWorldY = tank.worldY;
-  
-  if (keys['ArrowLeft']) {
-    newWorldX -= tank.speed;
-  }
-  if (keys['ArrowRight']) {
-    newWorldX += tank.speed;
-  }
-  if (keys['ArrowUp']) {
-    newWorldY -= tank.speed;
-  }
-  if (keys['ArrowDown']) {
-    newWorldY += tank.speed;
-  }
-  
-  // Cập nhật vị trí thế giới
-  tank.worldX = newWorldX;
+
+    // Xử lý phím mũi tên và bắn đạn
+    // Smooth movement and shooting with key state
+    const keys = {};
+    document.addEventListener('keydown', function(e) {
+      keys[e.key] = true;
+      
+      // Phím F để sử dụng bình nhiên liệu
+      if (e.key === 'f' || e.key === 'F') {
+        useFuel();
+      }
+    });
+    document.addEventListener('keyup', function(e) {
+      keys[e.key] = false;
+    });
+
+    // Hệ thống bình nhiên liệu
+    const fuelSystem = {
+      isReady: true,
+      cooldownTime: 300, // 5 giây (60fps * 5)
+      currentCooldown: 0
+    };
+
+    function useFuel() {
+      if (fuelSystem.isReady && tank.hp < tank.maxHp) {
+        tank.hp = Math.min(tank.hp + 2, tank.maxHp); // Hồi 2 máu
+        fuelSystem.isReady = false;
+        fuelSystem.currentCooldown = fuelSystem.cooldownTime;
+        updateFuelButton();
+      }
+    }
+
+    function updateFuelButton() {
+      if (fuelSystem.isReady) {
+        fuelBtn.classList.remove('disabled');
+        fuelBtn.style.opacity = '1';
+      } else {
+        fuelBtn.classList.add('disabled');
+        fuelBtn.style.opacity = '0.5';
+      }
+    }
+
+    function initWorldSystem() {
+      // Đặt offset ban đầu để xe tăng ở giữa màn hình
+      worldSystem.offsetX = tank.worldX - (canvas.width / 2 - 30);
+      worldSystem.offsetY = tank.worldY - (canvas.height / 2 - 25);
+      
+      // Cập nhật vị trí xe tăng trên màn hình
+      tank.x = tank.worldX - worldSystem.offsetX;
+      tank.y = tank.worldY - worldSystem.offsetY;
+    }
+
+    // Joystick và nút bắn
+    const joystick = {
+      active: false,
+      baseX: 0,
+      baseY: 0,
+      handleX: 0,
+      handleY: 0,
+      limitRadius: 0,
+      dx: 0,
+      dy: 0
+    };
+    
+    const shootButton = document.getElementById('shootBtn');
+    
+    // Xử lý sự kiện điều khiển
+    function setupControls() {
+      // Khởi tạo joystick
+      const baseRect = joystickBase.getBoundingClientRect();
+      joystick.baseX = baseRect.left + baseRect.width / 2;
+      joystick.baseY = baseRect.top + baseRect.height / 2;
+      joystick.limitRadius = baseRect.width / 2 - joystickHandle.offsetWidth / 2;
+      
+      // Đặt handle vào giữa
+      joystick.handleX = joystick.baseX;
+      joystick.handleY = joystick.baseY;
+      updateJoystickPosition();
+      
+      // Mouse events for joystick
+      joystickHandle.addEventListener('mousedown', startJoystick);
+      document.addEventListener('mousemove', moveJoystick);
+      document.addEventListener('mouseup', endJoystick);
+      
+      // Touch events for joystick
+      joystickHandle.addEventListener('touchstart', startJoystick);
+      document.addEventListener('touchmove', moveJoystick);
+      document.addEventListener('touchend', endJoystick);
+      document.addEventListener('touchcancel', endJoystick);
+      
+      // Nút bắn
+      shootButton.addEventListener('mousedown', () => keys[' '] = true);
+      shootButton.addEventListener('mouseup', () => keys[' '] = false);
+      shootButton.addEventListener('mouseleave', () => keys[' '] = false);
+      
+      shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
+      shootButton.addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
+      
+      // Nút bình nhiên liệu
+      fuelBtn.addEventListener('click', useFuel);
+      fuelBtn.addEventListener('touchstart', (e) => { e.preventDefault(); useFuel(); });
+    }
+    
+    function startJoystick(e) {
+      e.preventDefault();
+      joystick.active = true;
+      
+      // Recalculate base position in case of screen resize
+      const baseRect = joystickBase.getBoundingClientRect();
+      joystick.baseX = baseRect.left + baseRect.width / 2;
+      joystick.baseY = baseRect.top + baseRect.height / 2;
+      joystick.limitRadius = baseRect.width / 2 - joystickHandle.offsetWidth / 2;
+    }
+    
+    function moveJoystick(e) {
+      if (!joystick.active) return;
+      e.preventDefault();
+      
+      let clientX, clientY;
+      
+      if (e.type === 'touchmove') {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      // Calculate distance from center
+      let dx = clientX - joystick.baseX;
+      let dy = clientY - joystick.baseY;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Limit to circle
+      if (distance > joystick.limitRadius) {
+        dx = dx * joystick.limitRadius / distance;
+        dy = dy * joystick.limitRadius / distance;
+      }
+      
+      // Update handle position
+      joystick.handleX = joystick.baseX + dx;
+      joystick.handleY = joystick.baseY + dy;
+      
+      // Update joystick values for game controls
+      joystick.dx = dx / joystick.limitRadius; // -1 to 1
+      joystick.dy = dy / joystick.limitRadius; // -1 to 1
+      
+      // Update visual position
+      updateJoystickPosition();
+      
+      // Update key states based on joystick position
+      updateKeyStates();
+    }
+    
+    function endJoystick(e) {
+      if (!joystick.active) return;
+      e.preventDefault();
+      joystick.active = false;
+      
+      // Reset joystick to center
+      joystick.handleX = joystick.baseX;
+      joystick.handleY = joystick.baseY;
+      joystick.dx = 0;
+      joystick.dy = 0;
+      
+      // Update visual position
+      updateJoystickPosition();
+      
+      // Reset all direction keys
+      keys['ArrowUp'] = false;
+      keys['ArrowDown'] = false;
+      keys['ArrowLeft'] = false;
+      keys['ArrowRight'] = false;
+    }
+    
+    function updateJoystickPosition() {
+      joystickHandle.style.transform = `translate(${joystick.handleX - joystick.baseX}px, ${joystick.handleY - joystick.baseY}px)`;
+    }
+    
+    function updateKeyStates() {
+      // Convert joystick position to key presses
+      const deadzone = 0.3; // Ignore small movements
+      
+      keys['ArrowUp'] = joystick.dy < -deadzone;
+      keys['ArrowDown'] = joystick.dy > deadzone;
+      keys['ArrowLeft'] = joystick.dx < -deadzone;
+      keys['ArrowRight'] = joystick.dx > deadzone;
+    }
+
+    function gameLoop() {
+      if (gameStarted) {
+        update();
+        requestAnimationFrame(gameLoop);
+      }
+    }
+
+startBtn.addEventListener('click', function() {
+      startBtn.style.display = 'none';
+      canvas.style.display = 'block';
+      joystickContainer.style.display = 'block';
+      shootControls.style.display = 'block';
+      gameStarted = true;
+      
+      // Đảm bảo canvas fullscreen
+      resizeCanvas();
+      
+      // Khởi tạo hệ thống thế giới
+      initWorldSystem();
+      
+      // Thiết lập điều khiển joystick
+      setupControls();
+      
+      // Khởi tạo trạng thái nút bình nhiên liệu
+      updateFuelButton();
+      
+      bgm.currentTime = 0;
+      // Try to play audio, fallback if blocked
+      bgm.play().then(() => {
+        // success
+      }).catch(() => {
+        // If failed, show a message and try again on next user gesture
+        alert('Click anywhere to enable game music!');
+        document.body.addEventListener('click', function tryPlay() {
+          bgm.play();
+          document.body.removeEventListener('click', tryPlay);
+        });
+      });
+      gameLoop();
+    });
+  </script>
+</body>
+</html>
   tank.worldY = newWorldY;
   
   // Giữ xe tăng ở trung tâm màn hình khi có thể
