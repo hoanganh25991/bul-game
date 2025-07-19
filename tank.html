@@ -87,13 +87,16 @@
       font-weight: bold;
     }
     
-    /* Nút bắn - góc phải */
+    /* Nút bắn và bình nhiên liệu - góc phải */
     .shoot-controls {
       position: fixed;
       bottom: 30px;
       right: 30px;
       display: none;
       z-index: 10;
+      flex-direction: row;
+      gap: 20px;
+      align-items: center;
     }
     
     .shoot-btn {
@@ -124,6 +127,49 @@
       transform: scale(0.9);
     }
     
+    /* Nút bình nhiên liệu */
+    .fuel-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(76, 175, 80, 0.3);
+      border: 3px solid #4caf50;
+      color: #4caf50;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+      margin-bottom: 10px;
+    }
+    
+    .fuel-btn:hover {
+      background: rgba(76, 175, 80, 0.5);
+      transform: scale(1.1);
+    }
+    
+    .fuel-btn:active {
+      background: rgba(76, 175, 80, 0.7);
+      transform: scale(0.9);
+    }
+    
+    .fuel-btn.disabled {
+      background: rgba(128, 128, 128, 0.3);
+      border-color: #808080;
+      color: #808080;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .fuel-btn.disabled:hover {
+      transform: none;
+      background: rgba(128, 128, 128, 0.3);
+    }
+    
     /* Responsive cho màn hình nhỏ */
     @media (max-width: 768px) {
       .joystick-container {
@@ -141,9 +187,16 @@
       .shoot-controls {
         bottom: 20px;
         right: 20px;
+        gap: 15px;
       }
       
       .shoot-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
+      
+      .fuel-btn {
         width: 70px;
         height: 70px;
         font-size: 28px;
@@ -166,9 +219,16 @@
       .shoot-controls {
         bottom: 15px;
         right: 15px;
+        gap: 12px;
       }
       
       .shoot-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
+      
+      .fuel-btn {
         width: 65px;
         height: 65px;
         font-size: 24px;
@@ -191,9 +251,16 @@
       .shoot-controls {
         bottom: 10px;
         right: 10px;
+        gap: 10px;
       }
       
       .shoot-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
+      
+      .fuel-btn {
         width: 55px;
         height: 55px;
         font-size: 20px;
@@ -213,8 +280,9 @@
       </div>
     </div>
     
-    <!-- Nút bắn - góc phải -->
+    <!-- Nút bắn và bình nhiên liệu - góc phải -->
     <div class="shoot-controls" id="shootControls">
+      <button class="fuel-btn" id="fuelBtn">⛽</button>
       <button class="shoot-btn" id="shootBtn"><img src="bullet.png" alt="Bullet" style="width: 30px; height: 30px;"></button>
     </div>
   </div>
@@ -241,6 +309,7 @@
     const joystickBase = document.getElementById('joystickBase');
     const joystickHandle = document.getElementById('joystickHandle');
     const shootControls = document.getElementById('shootControls');
+    const fuelBtn = document.getElementById('fuelBtn');
     
     // Thiết lập canvas fullscreen
     function resizeCanvas() {
@@ -257,6 +326,13 @@
     resizeCanvas();
 
     let gameStarted = false;
+    
+    // Hệ thống chiến thắng
+    const victorySystem = {
+      enemiesKilled: 0,
+      targetKills: 30,
+      gameWon: false
+    };
 
     // Hệ thống bản đồ vô tận
     const worldSystem = {
@@ -529,6 +605,12 @@ function update() {
   // Hiệu ứng nổ cho tank người chơi
   if (typeof window.tankExplosions === 'undefined') window.tankExplosions = [];
 
+  // Kiểm tra chiến thắng
+  if (victorySystem.gameWon) {
+    showVictoryScreen();
+    return;
+  }
+  
   // Nếu đã thua thì vẽ nổ và thông báo, không update nữa
   if (tank.hp <= 0) {
     // Vẽ hiệu ứng nổ nhiều frame
@@ -584,6 +666,26 @@ function showReplayButton() {
   btn.style.display = 'block';
 }
 
+// Hiển thị màn hình chiến thắng
+function showVictoryScreen() {
+  // Hiệu ứng pháo hoa (có thể thêm sau)
+  ctx.save();
+  ctx.font = 'bold 3em Arial';
+  ctx.fillStyle = '#FFD700';
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 10;
+  ctx.fillText('🎉 CHIẾN THẮNG! 🎉', canvas.width / 2, canvas.height / 2 - 50);
+  
+  ctx.font = 'bold 1.5em Arial';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(`Đã tiêu diệt ${victorySystem.targetKills} quân địch!`, canvas.width / 2, canvas.height / 2 + 20);
+  ctx.restore();
+  
+  // Hiện nút chơi lại
+  showReplayButton();
+}
+
 function resetGame() {
   // Reset các biến game
   tank.hp = tank.maxHp;
@@ -599,6 +701,15 @@ function resetGame() {
   window.tankHitExplosions = [];
   frameCount = 0;
   gameStarted = true;
+  
+  // Reset hệ thống bình nhiên liệu
+  fuelSystem.currentCooldown = 0;
+  fuelSystem.isReady = true;
+  updateFuelButton();
+  
+  // Reset hệ thống chiến thắng
+  victorySystem.enemiesKilled = 0;
+  victorySystem.gameWon = false;
   // Ẩn nút replay nếu còn
   let btn = document.getElementById('replayBtn');
   if (btn) btn.style.display = 'none';
@@ -667,6 +778,16 @@ function resetGame() {
   // Vẽ xe tăng người chơi với cột máu
   drawTank(tank.x, tank.y, '#4caf50', '#388e3c', false, tank.hp, tank.maxHp);
   
+  // Hiển thị số quân địch đã tiêu diệt
+  ctx.save();
+  ctx.font = 'bold 24px Arial';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'left';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 3;
+  ctx.fillText(`Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, 20, 40);
+  ctx.restore();
+  
   // Cập nhật và vẽ đạn người chơi
   for (let i = 0; i < bullets.length; i++) {
     bullets[i].worldY -= bulletSpeed;
@@ -734,6 +855,14 @@ function resetGame() {
         if (enemy.hp <= 0) {
           explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
           enemies.splice(i, 1);
+          
+          // Tăng số quân địch đã tiêu diệt
+          victorySystem.enemiesKilled++;
+          
+          // Kiểm tra điều kiện chiến thắng
+          if (victorySystem.enemiesKilled >= victorySystem.targetKills) {
+            victorySystem.gameWon = true;
+          }
         }
         break;
       }
@@ -821,6 +950,15 @@ function resetGame() {
   if (frameCount % enemySpawnInterval === 0) {
     spawnEnemy();
   }
+  
+  // Cập nhật cooldown bình nhiên liệu
+  if (fuelSystem.currentCooldown > 0) {
+    fuelSystem.currentCooldown--;
+    if (fuelSystem.currentCooldown <= 0) {
+      fuelSystem.isReady = true;
+    }
+    updateFuelButton();
+  }
 }
 
     // Xử lý phím mũi tên và bắn đạn
@@ -828,6 +966,11 @@ function resetGame() {
     const keys = {};
     document.addEventListener('keydown', function(e) {
       keys[e.key] = true;
+      
+      // Phím F để sử dụng bình nhiên liệu
+      if (e.key === 'f' || e.key === 'F') {
+        useFuel();
+      }
     });
     document.addEventListener('keyup', function(e) {
       keys[e.key] = false;
@@ -835,6 +978,43 @@ function resetGame() {
 
     // Shooting cooldown
     let shootCooldown = 0;
+    
+    // Hệ thống bình nhiên liệu
+    const fuelSystem = {
+      cooldownTime: 300, // 5 giây (60 FPS * 5)
+      currentCooldown: 0,
+      isReady: true
+    };
+    
+    // Hàm sử dụng bình nhiên liệu
+    function useFuel() {
+      if (fuelSystem.isReady && tank.hp < tank.maxHp) {
+        // Hồi phục toàn bộ HP
+        tank.hp = tank.maxHp;
+        
+        // Bắt đầu cooldown
+        fuelSystem.currentCooldown = fuelSystem.cooldownTime;
+        fuelSystem.isReady = false;
+        
+        // Cập nhật giao diện nút
+        updateFuelButton();
+        
+        // Hiệu ứng hồi phục (có thể thêm sau)
+        console.log('Đã hồi phục toàn bộ HP!');
+      }
+    }
+    
+    // Cập nhật trạng thái nút bình nhiên liệu
+    function updateFuelButton() {
+      if (fuelSystem.isReady) {
+        fuelBtn.classList.remove('disabled');
+        fuelBtn.innerHTML = '⛽';
+      } else {
+        fuelBtn.classList.add('disabled');
+        const secondsLeft = Math.ceil(fuelSystem.currentCooldown / 60);
+        fuelBtn.innerHTML = secondsLeft.toString();
+      }
+    }
     
     // Khởi tạo hệ thống thế giới
     function initWorldSystem() {
@@ -892,6 +1072,10 @@ function resetGame() {
       
       shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
       shootButton.addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
+      
+      // Nút bình nhiên liệu
+      fuelBtn.addEventListener('click', useFuel);
+      fuelBtn.addEventListener('touchstart', (e) => { e.preventDefault(); useFuel(); });
     }
     
     function startJoystick(e) {
@@ -1002,6 +1186,9 @@ startBtn.addEventListener('click', function() {
       
       // Thiết lập điều khiển joystick
       setupControls();
+      
+      // Khởi tạo trạng thái nút bình nhiên liệu
+      updateFuelButton();
       
       bgm.currentTime = 0;
       // Try to play audio, fallback if blocked
