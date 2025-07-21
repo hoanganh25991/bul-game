@@ -170,6 +170,77 @@
       background: rgba(128, 128, 128, 0.3);
     }
     
+    /* Nút tuyệt chiêu sóng điện */
+    .electric-wave-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(138, 43, 226, 0.3);
+      border: 3px solid #8a2be2;
+      color: #8a2be2;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .electric-wave-btn:hover {
+      background: rgba(138, 43, 226, 0.5);
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
+    }
+    
+    .electric-wave-btn:active {
+      background: rgba(138, 43, 226, 0.7);
+      transform: scale(0.9);
+    }
+    
+    .electric-wave-btn.disabled {
+      background: rgba(128, 128, 128, 0.3);
+      border-color: #808080;
+      color: #808080;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .electric-wave-btn.disabled:hover {
+      transform: none;
+      background: rgba(128, 128, 128, 0.3);
+      box-shadow: none;
+    }
+    
+    /* Hiệu ứng cooldown cho nút sóng điện */
+    .electric-wave-btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: conic-gradient(transparent 0deg, rgba(138, 43, 226, 0.8) 360deg);
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .electric-wave-btn.cooldown::after {
+      opacity: 1;
+      animation: cooldownSpin 0.1s linear;
+    }
+    
+    @keyframes cooldownSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
     /* Responsive cho màn hình nhỏ */
     @media (max-width: 768px) {
       .joystick-container {
@@ -197,6 +268,12 @@
       }
       
       .fuel-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
+      
+      .electric-wave-btn {
         width: 70px;
         height: 70px;
         font-size: 28px;
@@ -233,6 +310,12 @@
         height: 65px;
         font-size: 24px;
       }
+      
+      .electric-wave-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
     }
     
     @media (max-width: 360px) {
@@ -265,6 +348,12 @@
         height: 55px;
         font-size: 20px;
       }
+      
+      .electric-wave-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
     }
   </style>
 </head>
@@ -282,6 +371,7 @@
     
     <!-- Nút bắn và bình nhiên liệu - góc phải -->
     <div class="shoot-controls" id="shootControls">
+      <button class="electric-wave-btn" id="electricWaveBtn">⚡</button>
       <button class="fuel-btn" id="fuelBtn">⛽</button>
       <button class="shoot-btn" id="shootBtn"><img src="bullet.png" alt="Bullet" style="width: 30px; height: 30px;"></button>
     </div>
@@ -310,6 +400,7 @@
     const joystickHandle = document.getElementById('joystickHandle');
     const shootControls = document.getElementById('shootControls');
     const fuelBtn = document.getElementById('fuelBtn');
+    const electricWaveBtn = document.getElementById('electricWaveBtn');
     
     // Thiết lập canvas fullscreen
     function resizeCanvas() {
@@ -330,8 +421,19 @@
     // Hệ thống chiến thắng
     const victorySystem = {
       enemiesKilled: 0,
-      targetKills: 30,
+      targetKills: 1000,
       gameWon: false
+    };
+
+    // Hệ thống tuyệt chiêu sóng điện
+    const electricWaveSystem = {
+      isReady: true,
+      cooldownTime: 5000, // 5 giây cooldown
+      currentCooldown: 0,
+      waves: [], // Mảng chứa các sóng điện đang hoạt động
+      waveRadius: 300, // Bán kính tối đa của sóng
+      waveDamage: 5, // Sát thương của sóng điện
+      waveSpeed: 8 // Tốc độ lan truyền sóng
     };
 
     // Hệ thống bản đồ vô tận
@@ -483,19 +585,19 @@
         x: 400, // Vị trí trên màn hình
         y: 300, // Vị trí trên màn hình
         speed: 3,
-        hp: 10,
-        maxHp: 10,
+        hp: 1000000000000000000000000000000000000,
+        maxHp: 1000000000000000000000000000000000,
         worldX: 400, // Vị trí thực trong thế giới
         worldY: 300
     };
 
 
     let bullets = [];
-    const bulletSpeed = 7;
+    const bulletSpeed = 10;
 
     // Đạn của xe tăng địch
     let enemyBullets = [];
-    const enemyBulletSpeed = 4;
+    const enemyBulletSpeed = 5;
 
 
     function drawBullet(bullet, color = '#ffeb3b') {
@@ -519,6 +621,85 @@
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.restore();
+    }
+
+    // Hàm sử dụng tuyệt chiêu sóng điện
+    function useElectricWave() {
+      if (!electricWaveSystem.isReady) return;
+      
+      // Tạo sóng điện mới
+      electricWaveSystem.waves.push({
+        x: tank.x + 30, // Tâm xe tăng
+        y: tank.y + 35,
+        worldX: tank.worldX + 30,
+        worldY: tank.worldY + 35,
+        radius: 0,
+        maxRadius: electricWaveSystem.waveRadius,
+        speed: electricWaveSystem.waveSpeed,
+        damage: electricWaveSystem.waveDamage,
+        opacity: 1,
+        hitEnemies: [] // Danh sách kẻ địch đã bị trúng để tránh hit nhiều lần
+      });
+      
+      // Bắt đầu cooldown
+      electricWaveSystem.isReady = false;
+      electricWaveSystem.currentCooldown = electricWaveSystem.cooldownTime;
+      updateElectricWaveButton();
+    }
+
+    // Hàm vẽ sóng điện
+    function drawElectricWave(wave) {
+      ctx.save();
+      
+      // Vẽ vòng tròn sóng điện chính
+      ctx.beginPath();
+      ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(138, 43, 226, ${wave.opacity})`;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      
+      // Vẽ hiệu ứng tia chớp
+      ctx.strokeStyle = `rgba(255, 255, 255, ${wave.opacity * 0.8})`;
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 8; i++) {
+        let angle = (i / 8) * Math.PI * 2;
+        let innerRadius = wave.radius * 0.7;
+        let outerRadius = wave.radius * 1.1;
+        
+        ctx.beginPath();
+        ctx.moveTo(
+          wave.x + Math.cos(angle) * innerRadius,
+          wave.y + Math.sin(angle) * innerRadius
+        );
+        ctx.lineTo(
+          wave.x + Math.cos(angle) * outerRadius,
+          wave.y + Math.sin(angle) * outerRadius
+        );
+        ctx.stroke();
+      }
+      
+      // Vẽ vòng tròn bên trong với hiệu ứng phát sáng
+      if (wave.radius > 20) {
+        ctx.beginPath();
+        ctx.arc(wave.x, wave.y, wave.radius * 0.3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(138, 43, 226, ${wave.opacity * 0.3})`;
+        ctx.fill();
+      }
+      
+      ctx.restore();
+    }
+
+    // Hàm cập nhật nút sóng điện
+    function updateElectricWaveButton() {
+      if (electricWaveSystem.isReady) {
+        electricWaveBtn.classList.remove('disabled');
+        electricWaveBtn.classList.remove('cooldown');
+        electricWaveBtn.style.opacity = '1';
+      } else {
+        electricWaveBtn.classList.add('disabled');
+        electricWaveBtn.classList.add('cooldown');
+        electricWaveBtn.style.opacity = '0.5';
+      }
     }
 
 function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = false, hp, maxHp) {
@@ -565,8 +746,9 @@ function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = fa
 // Enemy tanks
 let enemies = [];
 const enemySpeed = 2;
-const enemySpawnInterval = 120; // frames
+const enemySpawnInterval = 12; // frames - tăng tốc độ spawn 10 lần
 let frameCount = 0;
+let enemyIdCounter = 0; // Đếm ID duy nhất cho mỗi kẻ địch
 
 function spawnEnemy() {
   // Random x position trong thế giới, spawn phía trên tank
@@ -580,6 +762,7 @@ function spawnEnemy() {
   
   // Thêm hệ thống máu cho xe tăng địch và vị trí thế giới
   enemies.push({ 
+    id: enemyIdCounter++, // ID duy nhất
     x: x, 
     y: -100, 
     dx: dx, 
@@ -763,7 +946,7 @@ function update() {
         
         // Nếu máu về 0 thì thêm hiệu ứng nổ và xóa xe tăng
         if (enemy.hp <= 0) {
-          explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+          window.explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
           enemies.splice(j, 1);
           
           // Tăng số quân địch đã tiêu diệt
@@ -838,6 +1021,116 @@ function update() {
     }
   }
 
+  // Cập nhật và vẽ sóng điện
+  for (let i = electricWaveSystem.waves.length - 1; i >= 0; i--) {
+    let wave = electricWaveSystem.waves[i];
+    
+    // Cập nhật vị trí sóng trên màn hình
+    wave.x = wave.worldX - worldSystem.offsetX;
+    wave.y = wave.worldY - worldSystem.offsetY;
+    
+    // Tăng bán kính sóng
+    wave.radius += wave.speed;
+    
+    // Giảm độ trong suốt theo thời gian
+    wave.opacity = Math.max(0, 1 - (wave.radius / wave.maxRadius));
+    
+    // Kiểm tra va chạm với kẻ địch
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let enemy = enemies[j];
+      
+      // Kiểm tra xem kẻ địch đã bị trúng chưa
+      if (wave.hitEnemies.includes(enemy.id)) continue;
+      
+      // Tính khoảng cách từ tâm sóng đến kẻ địch
+      let dx = enemy.x + 30 - wave.x;
+      let dy = enemy.y + 35 - wave.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Nếu kẻ địch nằm trong phạm vi sóng
+      if (distance <= wave.radius && distance >= wave.radius - wave.speed * 2) {
+        // Gây sát thương
+        enemy.hp -= wave.damage;
+        
+        // Thêm hiệu ứng nổ điện
+        if (typeof window.electricExplosions === 'undefined') window.electricExplosions = [];
+        window.electricExplosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+        
+        // Đánh dấu kẻ địch đã bị trúng
+        wave.hitEnemies.push(enemy.id);
+        
+        // Nếu kẻ địch chết
+        if (enemy.hp <= 0) {
+          if (typeof window.explosions === 'undefined') window.explosions = [];
+          window.explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+          enemies.splice(j, 1);
+          
+          // Tăng số quân địch đã tiêu diệt
+          victorySystem.enemiesKilled++;
+          
+          // Kiểm tra điều kiện chiến thắng
+          if (victorySystem.enemiesKilled >= victorySystem.targetKills) {
+            victorySystem.gameWon = true;
+          }
+        }
+      }
+    }
+    
+    // Vẽ sóng điện
+    if (wave.x > -wave.maxRadius && wave.x < canvas.width + wave.maxRadius && 
+        wave.y > -wave.maxRadius && wave.y < canvas.height + wave.maxRadius) {
+      drawElectricWave(wave);
+    }
+    
+    // Xóa sóng khi đã hết hiệu lực
+    if (wave.radius >= wave.maxRadius) {
+      electricWaveSystem.waves.splice(i, 1);
+    }
+  }
+
+  // Vẽ hiệu ứng nổ điện
+  if (typeof window.electricExplosions !== 'undefined') {
+    for (let i = window.electricExplosions.length - 1; i >= 0; i--) {
+      let ex = window.electricExplosions[i];
+      if (ex.time <= 20) {
+        // Vẽ hiệu ứng nổ điện
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(ex.x + 30, ex.y + 35, 15 + ex.time, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(138, 43, 226, ${1 - ex.time / 20})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // Vẽ tia chớp nhỏ
+        for (let j = 0; j < 6; j++) {
+          let angle = (j / 6) * Math.PI * 2 + ex.time * 0.2;
+          let radius = 10 + ex.time * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(ex.x + 30, ex.y + 35);
+          ctx.lineTo(
+            ex.x + 30 + Math.cos(angle) * radius,
+            ex.y + 35 + Math.sin(angle) * radius
+          );
+          ctx.strokeStyle = `rgba(255, 255, 255, ${1 - ex.time / 20})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+      ex.time++;
+      if (ex.time > 20) window.electricExplosions.splice(i, 1);
+    }
+  }
+
+  // Cập nhật cooldown sóng điện
+  if (!electricWaveSystem.isReady) {
+    electricWaveSystem.currentCooldown -= 16.67; // Giả sử 60 FPS
+    if (electricWaveSystem.currentCooldown <= 0) {
+      electricWaveSystem.isReady = true;
+      updateElectricWaveButton();
+    }
+  }
+
   // Hiển thị thông tin game
   ctx.save();
   ctx.font = 'bold 1.2em Arial';
@@ -846,16 +1139,19 @@ function update() {
   ctx.shadowBlur = 3;
   ctx.fillText(`HP: ${tank.hp}/${tank.maxHp}`, 20, 20);
   ctx.fillText(`Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, 20, 40);
+  
+  // Hiển thị cooldown sóng điện
+  if (!electricWaveSystem.isReady) {
+    let cooldownSeconds = Math.ceil(electricWaveSystem.currentCooldown / 1000);
+    ctx.fillStyle = '#8a2be2';
+    ctx.fillText(`⚡ Sóng điện: ${cooldownSeconds}s`, 20, 60);
+  } else {
+    ctx.fillStyle = '#8a2be2';
+    ctx.fillText(`⚡ Sóng điện: Sẵn sàng`, 20, 60);
+  }
   ctx.restore();
 
-  // Hệ thống bình nhiên liệu
-  if (fuelSystem.currentCooldown > 0) {
-    fuelSystem.currentCooldown--;
-    if (fuelSystem.currentCooldown <= 0) {
-      fuelSystem.isReady = true;
-    }
-    updateFuelButton();
-  }
+  // Hệ thống bình nhiên liệu - không có thời gian chờ
 }
 
 // Thêm nút chơi lại
@@ -921,13 +1217,20 @@ function resetGame() {
   window.explosions = [];
   window.tankExplosions = [];
   window.tankHitExplosions = [];
+  window.electricExplosions = [];
   frameCount = 0;
+  enemyIdCounter = 0;
   gameStarted = true;
   
-  // Reset hệ thống bình nhiên liệu
-  fuelSystem.currentCooldown = 0;
+  // Reset hệ thống bình nhiên liệu - luôn sẵn sàng
   fuelSystem.isReady = true;
   updateFuelButton();
+  
+  // Reset hệ thống sóng điện
+  electricWaveSystem.isReady = true;
+  electricWaveSystem.currentCooldown = 0;
+  electricWaveSystem.waves = [];
+  updateElectricWaveButton();
   
   // Reset hệ thống chiến thắng
   victorySystem.enemiesKilled = 0;
@@ -955,6 +1258,11 @@ function resetGame() {
       if (e.key === 'f' || e.key === 'F') {
         useFuel();
       }
+      
+      // Phím E để sử dụng sóng điện
+      if (e.key === 'e' || e.key === 'E') {
+        useElectricWave();
+      }
     });
     document.addEventListener('keyup', function(e) {
       keys[e.key] = false;
@@ -963,15 +1271,14 @@ function resetGame() {
     // Hệ thống bình nhiên liệu
     const fuelSystem = {
       isReady: true,
-      cooldownTime: 300, // 5 giây (60fps * 5)
+      cooldownTime: 0, // Không có thời gian chờ
       currentCooldown: 0
     };
 
     function useFuel() {
       if (fuelSystem.isReady && tank.hp < tank.maxHp) {
         tank.hp = Math.min(tank.hp + 2, tank.maxHp); // Hồi 2 máu
-        fuelSystem.isReady = false;
-        fuelSystem.currentCooldown = fuelSystem.cooldownTime;
+        // Không có thời gian chờ, có thể sử dụng liên tục
         updateFuelButton();
       }
     }
@@ -1039,12 +1346,27 @@ function resetGame() {
       shootButton.addEventListener('mouseup', () => keys[' '] = false);
       shootButton.addEventListener('mouseleave', () => keys[' '] = false);
       
-      shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
-      shootButton.addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
+      // Touch events cho nút bắn - hỗ trợ giữ để bắn liên tục
+      shootButton.addEventListener('touchstart', (e) => { 
+        e.preventDefault(); 
+        keys[' '] = true; 
+      });
+      shootButton.addEventListener('touchend', (e) => { 
+        e.preventDefault(); 
+        keys[' '] = false; 
+      });
+      shootButton.addEventListener('touchcancel', (e) => { 
+        e.preventDefault(); 
+        keys[' '] = false; 
+      });
       
       // Nút bình nhiên liệu
       fuelBtn.addEventListener('click', useFuel);
       fuelBtn.addEventListener('touchstart', (e) => { e.preventDefault(); useFuel(); });
+      
+      // Nút sóng điện
+      electricWaveBtn.addEventListener('click', useElectricWave);
+      electricWaveBtn.addEventListener('touchstart', (e) => { e.preventDefault(); useElectricWave(); });
     }
     
     function startJoystick(e) {
@@ -1159,467 +1481,8 @@ startBtn.addEventListener('click', function() {
       // Khởi tạo trạng thái nút bình nhiên liệu
       updateFuelButton();
       
-      bgm.currentTime = 0;
-      // Try to play audio, fallback if blocked
-      bgm.play().then(() => {
-        // success
-      }).catch(() => {
-        // If failed, show a message and try again on next user gesture
-        alert('Click anywhere to enable game music!');
-        document.body.addEventListener('click', function tryPlay() {
-          bgm.play();
-          document.body.removeEventListener('click', tryPlay);
-        });
-      });
-      gameLoop();
-    });
-  </script>
-</body>
-</html>
-  tank.worldY = newWorldY;
-  
-  // Giữ xe tăng ở trung tâm màn hình khi có thể
-  let targetX = canvas.width / 2 - 30; // trung tâm - nửa chiều rộng xe tăng
-  let targetY = canvas.height / 2 - 25; // trung tâm - nửa chiều cao xe tăng
-  
-  // Tính toán offset để giữ xe tăng ở vị trí mong muốn
-  // Cho phép xe tăng di chuyển tự do trong thế giới vô tận
-  worldSystem.offsetX = tank.worldX - targetX;
-  worldSystem.offsetY = tank.worldY - targetY;
-  
-  // Cập nhật vị trí xe tăng trên màn hình
-  tank.x = tank.worldX - worldSystem.offsetX;
-  tank.y = tank.worldY - worldSystem.offsetY;
-  
-  // Giới hạn xe tăng trong màn hình (chỉ khi cần thiết)
-  tank.x = Math.max(0, Math.min(canvas.width - 60, tank.x));
-  tank.y = Math.max(0, Math.min(canvas.height - 50, tank.y));
-  // Shooting when holding space
-  if ((keys[' '] || keys['Spacebar']) && shootCooldown <= 0) {
-    bullets.push({
-      x: tank.x + 30,
-      y: tank.y - 20,
-      worldX: tank.worldX + 30,
-      worldY: tank.worldY - 20
-    });
-    shootCooldown = 10; // frames between shots (adjust for faster/slower shooting)
-  }
-  if (shootCooldown > 0) shootCooldown--;
-
-  // Vẽ xe tăng người chơi với cột máu
-  drawTank(tank.x, tank.y, '#4caf50', '#388e3c', false, tank.hp, tank.maxHp);
-  
-  // Hiển thị số quân địch đã tiêu diệt
-  ctx.save();
-  ctx.font = 'bold 24px Arial';
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'left';
-  ctx.shadowColor = '#000';
-  ctx.shadowBlur = 3;
-  ctx.fillText(`Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, 20, 40);
-  ctx.restore();
-  
-  // Cập nhật và vẽ đạn người chơi
-  for (let i = 0; i < bullets.length; i++) {
-    bullets[i].worldY -= bulletSpeed;
-    bullets[i].x = bullets[i].worldX - worldSystem.offsetX;
-    bullets[i].y = bullets[i].worldY - worldSystem.offsetY;
-    drawBullet(bullets[i]);
-  }
-  bullets = bullets.filter(b => b.y > -10 && b.y < canvas.height + 10);
-
-  // Cập nhật và vẽ đạn enemy
-  for (let i = 0; i < enemyBullets.length; i++) {
-    enemyBullets[i].worldY += enemyBulletSpeed;
-    enemyBullets[i].x = enemyBullets[i].worldX - worldSystem.offsetX;
-    enemyBullets[i].y = enemyBullets[i].worldY - worldSystem.offsetY;
-    drawBullet(enemyBullets[i], '#ff5252');
-  }
-  // Kiểm tra va chạm đạn địch với tank người chơi
-  for (let i = enemyBullets.length - 1; i >= 0; i--) {
-    let b = enemyBullets[i];
-    // Va chạm hình chữ nhật với tank
-    if (
-      b.x > tank.x && b.x < tank.x + 60 &&
-      b.y > tank.y && b.y < tank.y + 50
-    ) {
-      tank.hp = Math.max(0, tank.hp - 1);
-      // Hiệu ứng nổ nhỏ khi trúng đạn
-      if (typeof window.tankHitExplosions === 'undefined') window.tankHitExplosions = [];
-      window.tankHitExplosions.push({ x: tank.x, y: tank.y, time: 0 });
-      enemyBullets.splice(i, 1);
-      // Nếu máu về 0 thì dừng game ở frame này
-      if (tank.hp <= 0) {
-        break;
-      }
-    }
-  }
-  enemyBullets = enemyBullets.filter(b => b.y > -10 && b.y < canvas.height + 10);
-
-  // Vẽ hiệu ứng nổ nhỏ khi trúng đạn
-  if (typeof window.tankHitExplosions === 'undefined') window.tankHitExplosions = [];
-  for (let i = window.tankHitExplosions.length - 1; i >= 0; i--) {
-    let ex = window.tankHitExplosions[i];
-    if (ex.time < 10) drawExplosion(ex.x, ex.y);
-    ex.time++;
-    if (ex.time > 10) window.tankHitExplosions.splice(i, 1);
-  }
-
-  // Kiểm tra va chạm đạn người chơi và xe tăng địch
-  let explosions = [];
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    let enemy = enemies[i];
-    for (let j = bullets.length - 1; j >= 0; j--) {
-      let bullet = bullets[j];
-      // Kiểm tra va chạm hình chữ nhật đơn giản
-      if (
-        bullet.x > enemy.x && bullet.x < enemy.x + 60 &&
-        bullet.y > enemy.y && bullet.y < enemy.y + 50
-      ) {
-        // Giảm máu xe tăng địch
-        enemy.hp = Math.max(0, enemy.hp - 1);
-        
-        // Xóa đạn
-        bullets.splice(j, 1);
-        
-        // Nếu máu về 0 thì thêm hiệu ứng nổ và xóa xe tăng
-        if (enemy.hp <= 0) {
-          explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
-          enemies.splice(i, 1);
-          
-          // Tăng số quân địch đã tiêu diệt
-          victorySystem.enemiesKilled++;
-          
-          // Kiểm tra điều kiện chiến thắng
-          if (victorySystem.enemiesKilled >= victorySystem.targetKills) {
-            victorySystem.gameWon = true;
-          }
-        }
-        break;
-      }
-    }
-  }
-
-  // Cập nhật và vẽ quân địch
-  for (let i = 0; i < enemies.length; i++) {
-    let enemy = enemies[i];
-    
-    const followRange = 80;
-    const speed = Math.abs(enemy.dx);
-    
-    // Tính vị trí màn hình hiện tại để kiểm tra logic
-    let currentScreenX = enemy.worldX - worldSystem.offsetX;
-    let currentScreenY = enemy.worldY - worldSystem.offsetY;
-    
-    // Logic di chuyển mượt mà
-    let moveX = enemy.dx;
-    let moveY = enemy.dy;
-    
-    // Nếu tank ở gần trục x và enemy còn phía trên tank, thì dí theo
-    if (Math.abs((currentScreenX + 30) - (tank.x + 30)) < followRange && currentScreenY < tank.y + 50) {
-      // Di chuyển mượt về phía tank với dead zone để tránh rung
-      const distance = (tank.worldX + 30) - (enemy.worldX + 30);
-      if (Math.abs(distance) > 10) { // Dead zone 10 pixels
-        if (distance > 0) {
-          moveX = Math.min(speed, Math.abs(distance) * 0.1); // Di chuyển về phía phải
-        } else {
-          moveX = -Math.min(speed, Math.abs(distance) * 0.1); // Di chuyển về phía trái
-        }
-      } else {
-        moveX = 0; // Đứng yên khi trong dead zone
-      }
-    }
-    
-    // Cập nhật vị trí world một cách mượt mà
-    enemy.worldX += moveX;
-    enemy.worldY += moveY;
-    
-    // Cập nhật vị trí màn hình
-    enemy.x = enemy.worldX - worldSystem.offsetX;
-    enemy.y = enemy.worldY - worldSystem.offsetY;
-    
-    // Cập nhật hướng di chuyển cho frame tiếp theo
-    enemy.dx = moveX;
-    
-    // Vẽ xe tăng địch nếu trong phạm vi màn hình
-    if (enemy.x > -70 && enemy.x < canvas.width + 70 && 
-        enemy.y > -70 && enemy.y < canvas.height + 70) {
-      drawTank(enemy.x, enemy.y, '#2196f3', '#1565c0', true, enemy.hp, enemy.maxHp);
-    }
-
-    // Enemy bắn đạn định kỳ với tần suất ổn định
-    if (!enemy.shootTimer) enemy.shootTimer = Math.floor(Math.random() * 90) + 60; // Tăng thời gian delay
-    enemy.shootTimer--;
-    if (enemy.shootTimer <= 0) {
-      enemyBullets.push({
-        x: enemy.x + 30,
-        y: enemy.y + 50,
-        worldX: enemy.worldX + 30,
-        worldY: enemy.worldY + 50
-      });
-      enemy.shootTimer = Math.floor(Math.random() * 90) + 60; // Tăng thời gian delay
-    }
-  }
-  // Xóa quân địch ra khỏi mảng nếu ra khỏi khu vực rộng hơn
-  enemies = enemies.filter(e => 
-    e.worldX > worldSystem.offsetX - 200 && e.worldX < worldSystem.offsetX + canvas.width + 200 &&
-    e.worldY > worldSystem.offsetY - 200 && e.worldY < worldSystem.offsetY + canvas.height + 200
-  );
-
-  // Vẽ hiệu ứng nổ
-  if (typeof window.explosions === 'undefined') window.explosions = [];
-  window.explosions = (window.explosions || []).concat(explosions || []);
-  for (let i = window.explosions.length - 1; i >= 0; i--) {
-    let ex = window.explosions[i];
-    drawExplosion(ex.x, ex.y);
-    ex.time++;
-    if (ex.time > 15) window.explosions.splice(i, 1);
-  }
-
-  // Sinh quân địch mới theo thời gian
-  frameCount++;
-  if (frameCount % enemySpawnInterval === 0) {
-    spawnEnemy();
-  }
-  
-  // Cập nhật cooldown bình nhiên liệu
-  if (fuelSystem.currentCooldown > 0) {
-    fuelSystem.currentCooldown--;
-    if (fuelSystem.currentCooldown <= 0) {
-      fuelSystem.isReady = true;
-    }
-    updateFuelButton();
-  }
-}
-
-    // Xử lý phím mũi tên và bắn đạn
-    // Smooth movement and shooting with key state
-    const keys = {};
-    document.addEventListener('keydown', function(e) {
-      keys[e.key] = true;
-      
-      // Phím F để sử dụng bình nhiên liệu
-      if (e.key === 'f' || e.key === 'F') {
-        useFuel();
-      }
-    });
-    document.addEventListener('keyup', function(e) {
-      keys[e.key] = false;
-    });
-
-    // Shooting cooldown
-    let shootCooldown = 0;
-    
-    // Hệ thống bình nhiên liệu
-    const fuelSystem = {
-      cooldownTime: 300, // 5 giây (60 FPS * 5)
-      currentCooldown: 0,
-      isReady: true
-    };
-    
-    // Hàm sử dụng bình nhiên liệu
-    function useFuel() {
-      if (fuelSystem.isReady && tank.hp < tank.maxHp) {
-        // Hồi phục toàn bộ HP
-        tank.hp = tank.maxHp;
-        
-        // Bắt đầu cooldown
-        fuelSystem.currentCooldown = fuelSystem.cooldownTime;
-        fuelSystem.isReady = false;
-        
-        // Cập nhật giao diện nút
-        updateFuelButton();
-        
-        // Hiệu ứng hồi phục (có thể thêm sau)
-        console.log('Đã hồi phục toàn bộ HP!');
-      }
-    }
-    
-    // Cập nhật trạng thái nút bình nhiên liệu
-    function updateFuelButton() {
-      if (fuelSystem.isReady) {
-        fuelBtn.classList.remove('disabled');
-        fuelBtn.innerHTML = '⛽';
-      } else {
-        fuelBtn.classList.add('disabled');
-        const secondsLeft = Math.ceil(fuelSystem.currentCooldown / 60);
-        fuelBtn.innerHTML = secondsLeft.toString();
-      }
-    }
-    
-    // Khởi tạo hệ thống thế giới
-    function initWorldSystem() {
-      // Đặt offset ban đầu để xe tăng ở giữa màn hình
-      worldSystem.offsetX = tank.worldX - (canvas.width / 2 - 30);
-      worldSystem.offsetY = tank.worldY - (canvas.height / 2 - 25);
-      
-      // Cập nhật vị trí xe tăng trên màn hình
-      tank.x = tank.worldX - worldSystem.offsetX;
-      tank.y = tank.worldY - worldSystem.offsetY;
-    }
-
-    // Joystick và nút bắn
-    const joystick = {
-      active: false,
-      baseX: 0,
-      baseY: 0,
-      handleX: 0,
-      handleY: 0,
-      limitRadius: 0,
-      dx: 0,
-      dy: 0
-    };
-    
-    const shootButton = document.getElementById('shootBtn');
-    
-    // Xử lý sự kiện điều khiển
-    function setupControls() {
-      // Khởi tạo joystick
-      const baseRect = joystickBase.getBoundingClientRect();
-      joystick.baseX = baseRect.left + baseRect.width / 2;
-      joystick.baseY = baseRect.top + baseRect.height / 2;
-      joystick.limitRadius = baseRect.width / 2 - joystickHandle.offsetWidth / 2;
-      
-      // Đặt handle vào giữa
-      joystick.handleX = joystick.baseX;
-      joystick.handleY = joystick.baseY;
-      updateJoystickPosition();
-      
-      // Mouse events for joystick
-      joystickHandle.addEventListener('mousedown', startJoystick);
-      document.addEventListener('mousemove', moveJoystick);
-      document.addEventListener('mouseup', endJoystick);
-      
-      // Touch events for joystick
-      joystickHandle.addEventListener('touchstart', startJoystick);
-      document.addEventListener('touchmove', moveJoystick);
-      document.addEventListener('touchend', endJoystick);
-      document.addEventListener('touchcancel', endJoystick);
-      
-      // Nút bắn
-      shootButton.addEventListener('mousedown', () => keys[' '] = true);
-      shootButton.addEventListener('mouseup', () => keys[' '] = false);
-      shootButton.addEventListener('mouseleave', () => keys[' '] = false);
-      
-      shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); keys[' '] = true; });
-      shootButton.addEventListener('touchend', (e) => { e.preventDefault(); keys[' '] = false; });
-      
-      // Nút bình nhiên liệu
-      fuelBtn.addEventListener('click', useFuel);
-      fuelBtn.addEventListener('touchstart', (e) => { e.preventDefault(); useFuel(); });
-    }
-    
-    function startJoystick(e) {
-      e.preventDefault();
-      joystick.active = true;
-      
-      // Recalculate base position in case of screen resize
-      const baseRect = joystickBase.getBoundingClientRect();
-      joystick.baseX = baseRect.left + baseRect.width / 2;
-      joystick.baseY = baseRect.top + baseRect.height / 2;
-      joystick.limitRadius = baseRect.width / 2 - joystickHandle.offsetWidth / 2;
-    }
-    
-    function moveJoystick(e) {
-      if (!joystick.active) return;
-      e.preventDefault();
-      
-      let clientX, clientY;
-      
-      if (e.type === 'touchmove') {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-      }
-      
-      // Calculate distance from center
-      let dx = clientX - joystick.baseX;
-      let dy = clientY - joystick.baseY;
-      let distance = Math.sqrt(dx * dx + dy * dy);
-      
-      // Limit to circle
-      if (distance > joystick.limitRadius) {
-        dx = dx * joystick.limitRadius / distance;
-        dy = dy * joystick.limitRadius / distance;
-      }
-      
-      // Update handle position
-      joystick.handleX = joystick.baseX + dx;
-      joystick.handleY = joystick.baseY + dy;
-      
-      // Update joystick values for game controls
-      joystick.dx = dx / joystick.limitRadius; // -1 to 1
-      joystick.dy = dy / joystick.limitRadius; // -1 to 1
-      
-      // Update visual position
-      updateJoystickPosition();
-      
-      // Update key states based on joystick position
-      updateKeyStates();
-    }
-    
-    function endJoystick(e) {
-      if (!joystick.active) return;
-      e.preventDefault();
-      joystick.active = false;
-      
-      // Reset joystick to center
-      joystick.handleX = joystick.baseX;
-      joystick.handleY = joystick.baseY;
-      joystick.dx = 0;
-      joystick.dy = 0;
-      
-      // Update visual position
-      updateJoystickPosition();
-      
-      // Reset all direction keys
-      keys['ArrowUp'] = false;
-      keys['ArrowDown'] = false;
-      keys['ArrowLeft'] = false;
-      keys['ArrowRight'] = false;
-    }
-    
-    function updateJoystickPosition() {
-      joystickHandle.style.transform = `translate(${joystick.handleX - joystick.baseX}px, ${joystick.handleY - joystick.baseY}px)`;
-    }
-    
-    function updateKeyStates() {
-      // Convert joystick position to key presses
-      const deadzone = 0.3; // Ignore small movements
-      
-      keys['ArrowUp'] = joystick.dy < -deadzone;
-      keys['ArrowDown'] = joystick.dy > deadzone;
-      keys['ArrowLeft'] = joystick.dx < -deadzone;
-      keys['ArrowRight'] = joystick.dx > deadzone;
-    }
-
-    function gameLoop() {
-      if (gameStarted) {
-        update();
-        requestAnimationFrame(gameLoop);
-      }
-    }
-
-startBtn.addEventListener('click', function() {
-      startBtn.style.display = 'none';
-      canvas.style.display = 'block';
-      joystickContainer.style.display = 'block';
-      shootControls.style.display = 'block';
-      gameStarted = true;
-      
-      // Đảm bảo canvas fullscreen
-      resizeCanvas();
-      
-      // Khởi tạo hệ thống thế giới
-      initWorldSystem();
-      
-      // Thiết lập điều khiển joystick
-      setupControls();
-      
-      // Khởi tạo trạng thái nút bình nhiên liệu
-      updateFuelButton();
+      // Khởi tạo trạng thái nút sóng điện
+      updateElectricWaveButton();
       
       bgm.currentTime = 0;
       // Try to play audio, fallback if blocked
