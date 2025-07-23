@@ -516,7 +516,7 @@
     // Hệ thống chiến thắng
     const victorySystem = {
       enemiesKilled: 0,
-      targetKills: 1000,
+      targetKills: 30,
       gameWon: false
     };
 
@@ -534,7 +534,7 @@
     // Hệ thống tuyệt chiêu tên lửa
     const missileSystem = {
       isReady: true,
-      cooldownTime: 3000, // 3 giây cooldown
+      cooldownTime:  3, // 3 giây cooldown
       currentCooldown: 0,
       missiles: [], // Mảng chứa các tên lửa đang bay
       missileSpeed: 6, // Tốc độ tên lửa
@@ -692,15 +692,33 @@
         x: 400, // Vị trí trên màn hình
         y: 300, // Vị trí trên màn hình
         speed: 3,
-        hp: 1000000000000000000000000000000000000,
-        maxHp: 1000000000000000000000000000000000,
+        hp: 10,
+        maxHp: 10,
         worldX: 400, // Vị trí thực trong thế giới
         worldY: 300
     };
 
+    // Xe tăng nhỏ hỗ trợ
+    const supportTank = {
+        x: 350, // Vị trí trên màn hình
+        y: 350, // Vị trí trên màn hình
+        speed: 2.5, // Chậm hơn xe tăng chính một chút
+        hp: 5,
+        maxHp: 5,
+        worldX: 350, // Vị trí thực trong thế giới
+        worldY: 350,
+        targetDistance: 80, // Khoảng cách mục tiêu từ xe tăng chính
+        followAngle: Math.PI * 1.25, // Góc theo (bắt đầu ở phía sau bên trái)
+        shootCooldown: 0,
+        shootInterval: 45 // Bắn mỗi 45 frames (chậm hơn xe tăng chính)
+    };
 
     let bullets = [];
     const bulletSpeed = 10;
+
+    // Đạn của xe tăng hỗ trợ
+    let supportBullets = [];
+    const supportBulletSpeed = 8;
 
     // Đạn của xe tăng địch
     let enemyBullets = [];
@@ -976,10 +994,54 @@ function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = fa
   }
   ctx.restore();
 }
+
+// Hàm vẽ xe tăng nhỏ hỗ trợ (60% kích thước xe tăng chính)
+function drawSupportTank(x, y, color = '#2196f3', turretColor = '#1976d2', hp, maxHp) {
+  ctx.save();
+  
+  // Vẽ cột máu nếu có hp và maxHp
+  if (typeof hp === 'number' && typeof maxHp === 'number') {
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x + 3, y - 12, 30, 5);
+    // Thanh máu nền
+    ctx.fillStyle = '#f44336';
+    ctx.fillRect(x + 3, y - 12, 30, 5);
+    // Đổi màu health bar theo phần trăm máu
+    let percent = Math.max(0, Math.min(1, hp / maxHp));
+    if (percent > 0.6) ctx.fillStyle = '#76ff03'; // xanh
+    else if (percent > 0.3) ctx.fillStyle = '#ffeb3b'; // vàng
+    else ctx.fillStyle = '#f44336'; // đỏ
+    ctx.fillRect(x + 3, y - 12, 30 * percent, 5);
+  }
+  
+  // Thân xe (60% kích thước)
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + 12, 36, 18);
+  
+  // Tháp pháo (60% kích thước)
+  ctx.fillStyle = turretColor;
+  ctx.fillRect(x + 9, y, 18, 18);
+  
+  // Nòng pháo (60% kích thước)
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x + 16, y - 12, 4, 12);
+  
+  // Bánh xe (60% kích thước)
+  ctx.fillStyle = '#222';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(x + 9 + i * 9, y + 30, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.restore();
+}
+
 // Enemy tanks
 let enemies = [];
 const enemySpeed = 2;
-const enemySpawnInterval = 12; // frames - tăng tốc độ spawn 10 lần
+const enemySpawnInterval = 120; // frames - giảm tốc độ spawn 10 lần
 let frameCount = 0;
 let enemyIdCounter = 0; // Đếm ID duy nhất cho mỗi kẻ địch
 
@@ -1009,6 +1071,73 @@ function spawnEnemy() {
 
     function clear() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Hàm cập nhật xe tăng hỗ trợ
+    function updateSupportTank() {
+      if (supportTank.hp <= 0) return; // Không cập nhật nếu xe tăng hỗ trợ đã chết
+      
+      // Tính vị trí mục tiêu xung quanh xe tăng chính
+      let targetWorldX = tank.worldX + Math.cos(supportTank.followAngle) * supportTank.targetDistance;
+      let targetWorldY = tank.worldY + Math.sin(supportTank.followAngle) * supportTank.targetDistance;
+      
+      // Tính khoảng cách đến vị trí mục tiêu
+      let dx = targetWorldX - supportTank.worldX;
+      let dy = targetWorldY - supportTank.worldY;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Di chuyển về phía vị trí mục tiêu nếu quá xa
+      if (distance > 10) {
+        let moveX = (dx / distance) * supportTank.speed;
+        let moveY = (dy / distance) * supportTank.speed;
+        
+        supportTank.worldX += moveX;
+        supportTank.worldY += moveY;
+      }
+      
+      // Cập nhật vị trí trên màn hình
+      supportTank.x = supportTank.worldX - worldSystem.offsetX;
+      supportTank.y = supportTank.worldY - worldSystem.offsetY;
+      
+      // Xoay góc theo để tạo chuyển động tự nhiên
+      supportTank.followAngle += 0.01;
+      
+      // Bắn đạn hỗ trợ
+      supportTank.shootCooldown--;
+      if (supportTank.shootCooldown <= 0 && enemies.length > 0) {
+        // Tìm enemy gần nhất để bắn
+        let closestEnemy = null;
+        let closestDistance = Infinity;
+        
+        for (let enemy of enemies) {
+          let dx = enemy.worldX - supportTank.worldX;
+          let dy = enemy.worldY - supportTank.worldY;
+          let distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestEnemy = enemy;
+          }
+        }
+        
+        // Bắn về phía enemy gần nhất
+        if (closestEnemy && closestDistance < 400) { // Chỉ bắn trong phạm vi 400px
+          let dx = closestEnemy.worldX - supportTank.worldX;
+          let dy = closestEnemy.worldY - supportTank.worldY;
+          let distance = Math.sqrt(dx * dx + dy * dy);
+          
+          supportBullets.push({
+            x: supportTank.x + 18, // Giữa xe tăng nhỏ
+            y: supportTank.y,
+            worldX: supportTank.worldX + 18,
+            worldY: supportTank.worldY,
+            dx: (dx / distance) * supportBulletSpeed,
+            dy: (dy / distance) * supportBulletSpeed
+          });
+          
+          supportTank.shootCooldown = supportTank.shootInterval;
+        }
+      }
     }
 
 function update() {
@@ -1087,6 +1216,9 @@ function update() {
   tank.x = tank.worldX - worldSystem.offsetX;
   tank.y = tank.worldY - worldSystem.offsetY;
 
+  // Cập nhật xe tăng hỗ trợ
+  updateSupportTank();
+
   // Bắn đạn
   if (keys[' ']) {
     bullets.push({ x: tank.x + 30, y: tank.y, worldX: tank.worldX + 30, worldY: tank.worldY });
@@ -1102,6 +1234,21 @@ function update() {
     // Xóa đạn nếu ra khỏi màn hình
     if (bullet.y < -10) {
       bullets.splice(i, 1);
+    }
+  }
+
+  // Cập nhật đạn của xe tăng hỗ trợ
+  for (let i = supportBullets.length - 1; i >= 0; i--) {
+    let bullet = supportBullets[i];
+    bullet.worldX += bullet.dx;
+    bullet.worldY += bullet.dy;
+    bullet.x = bullet.worldX - worldSystem.offsetX;
+    bullet.y = bullet.worldY - worldSystem.offsetY;
+    
+    // Xóa đạn nếu ra khỏi màn hình
+    if (bullet.x < -10 || bullet.x > canvas.width + 10 || 
+        bullet.y < -10 || bullet.y > canvas.height + 10) {
+      supportBullets.splice(i, 1);
     }
   }
 
@@ -1195,6 +1342,44 @@ function update() {
     }
   }
 
+  // Kiểm tra va chạm đạn xe tăng hỗ trợ với enemies
+  for (let i = supportBullets.length - 1; i >= 0; i--) {
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let bullet = supportBullets[i];
+      let enemy = enemies[j];
+      
+      if (bullet && enemy && 
+          bullet.x > enemy.x && bullet.x < enemy.x + 60 &&
+          bullet.y > enemy.y && bullet.y < enemy.y + 70) {
+        
+        // Giảm máu enemy (đạn hỗ trợ gây ít sát thương hơn)
+        enemy.hp--;
+        
+        // Thêm hiệu ứng nổ
+        if (typeof window.explosions === 'undefined') window.explosions = [];
+        window.explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+        
+        // Xóa đạn
+        supportBullets.splice(i, 1);
+        
+        // Nếu máu về 0 thì thêm hiệu ứng nổ và xóa xe tăng
+        if (enemy.hp <= 0) {
+          window.explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+          enemies.splice(j, 1);
+          
+          // Tăng số quân địch đã tiêu diệt
+          victorySystem.enemiesKilled++;
+          
+          // Kiểm tra điều kiện chiến thắng
+          if (victorySystem.enemiesKilled >= victorySystem.targetKills) {
+            victorySystem.gameWon = true;
+          }
+        }
+        break;
+      }
+    }
+  }
+
   // Kiểm tra va chạm đạn enemy với tank người chơi
   for (let i = enemyBullets.length - 1; i >= 0; i--) {
     let bullet = enemyBullets[i];
@@ -1214,6 +1399,26 @@ function update() {
     }
   }
 
+  // Kiểm tra va chạm đạn enemy với xe tăng hỗ trợ
+  for (let i = enemyBullets.length - 1; i >= 0; i--) {
+    let bullet = enemyBullets[i];
+    
+    if (supportTank.hp > 0 && 
+        bullet.x > supportTank.x && bullet.x < supportTank.x + 36 &&
+        bullet.y > supportTank.y && bullet.y < supportTank.y + 42) {
+      
+      // Giảm máu xe tăng hỗ trợ
+      supportTank.hp--;
+      
+      // Thêm hiệu ứng nổ khi xe tăng hỗ trợ bị trúng
+      if (typeof window.supportTankHitExplosions === 'undefined') window.supportTankHitExplosions = [];
+      window.supportTankHitExplosions.push({ x: supportTank.x, y: supportTank.y, time: 0 });
+      
+      // Xóa đạn
+      enemyBullets.splice(i, 1);
+    }
+  }
+
   // Vẽ hiệu ứng nổ khi tank bị trúng
   if (typeof window.tankHitExplosions !== 'undefined') {
     for (let i = window.tankHitExplosions.length - 1; i >= 0; i--) {
@@ -1224,9 +1429,24 @@ function update() {
     }
   }
 
+  // Vẽ hiệu ứng nổ khi xe tăng hỗ trợ bị trúng
+  if (typeof window.supportTankHitExplosions !== 'undefined') {
+    for (let i = window.supportTankHitExplosions.length - 1; i >= 0; i--) {
+      let ex = window.supportTankHitExplosions[i];
+      if (ex.time <= 15) drawExplosion(ex.x, ex.y);
+      ex.time++;
+      if (ex.time > 15) window.supportTankHitExplosions.splice(i, 1);
+    }
+  }
+
   // Vẽ tank người chơi (chỉ khi còn sống)
   if (tank.hp > 0) {
     drawTank(tank.x, tank.y, '#4caf50', '#388e3c', false, tank.hp, tank.maxHp);
+  }
+
+  // Vẽ xe tăng hỗ trợ (chỉ khi còn sống)
+  if (supportTank.hp > 0) {
+    drawSupportTank(supportTank.x, supportTank.y, '#2196f3', '#1976d2', supportTank.hp, supportTank.maxHp);
   }
 
   // Vẽ enemies
@@ -1237,6 +1457,11 @@ function update() {
   // Vẽ đạn của người chơi
   for (let bullet of bullets) {
     drawBullet(bullet, '#ffeb3b');
+  }
+
+  // Vẽ đạn của xe tăng hỗ trợ
+  for (let bullet of supportBullets) {
+    drawBullet(bullet, '#2196f3');
   }
 
   // Vẽ đạn của enemy
