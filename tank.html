@@ -213,6 +213,28 @@
       position: relative;
       overflow: hidden;
     }
+
+    /* Nút kỹ năng bắn laser */
+    .bullet-time-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(33, 150, 243, 0.3);
+      border: 3px solid #2196f3;
+      color: #2196f3;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
     
     .missile-btn:hover {
       background: rgba(255, 87, 34, 0.5);
@@ -263,6 +285,42 @@
       background: rgba(128, 128, 128, 0.3);
       box-shadow: none;
     }
+
+    .bullet-time-btn:hover {
+      background: rgba(33, 150, 243, 0.5);
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(33, 150, 243, 0.6);
+    }
+    
+    .bullet-time-btn:active {
+      background: rgba(33, 150, 243, 0.7);
+      transform: scale(0.9);
+    }
+    
+    .bullet-time-btn.disabled {
+      background: rgba(128, 128, 128, 0.3);
+      border-color: #808080;
+      color: #808080;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .bullet-time-btn.disabled:hover {
+      transform: none;
+      background: rgba(128, 128, 128, 0.3);
+      box-shadow: none;
+    }
+
+    .bullet-time-btn.active {
+      background: rgba(33, 150, 243, 0.8);
+      box-shadow: 0 0 30px rgba(33, 150, 243, 1);
+      animation: bulletTimePulse 1s infinite;
+    }
+
+    @keyframes bulletTimePulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(33, 150, 243, 1); }
+      50% { box-shadow: 0 0 50px rgba(33, 150, 243, 0.8); }
+    }
     
     /* Hiệu ứng cooldown cho nút tên lửa */
     .missile-btn::after {
@@ -298,6 +356,25 @@
     }
     
     .electric-wave-btn.cooldown::after {
+      opacity: 1;
+      animation: cooldownSpin 0.1s linear;
+    }
+
+    /* Hiệu ứng cooldown cho nút bắn laser */
+    .bullet-time-btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: conic-gradient(transparent 0deg, rgba(33, 150, 243, 0.8) 360deg);
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .bullet-time-btn.cooldown::after {
       opacity: 1;
       animation: cooldownSpin 0.1s linear;
     }
@@ -350,6 +427,12 @@
         height: 70px;
         font-size: 28px;
       }
+      
+      .bullet-time-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
     }
     
     @media (max-width: 480px) {
@@ -390,6 +473,12 @@
       }
       
       .missile-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
+      
+      .bullet-time-btn {
         width: 65px;
         height: 65px;
         font-size: 24px;
@@ -438,6 +527,12 @@
         height: 55px;
         font-size: 20px;
       }
+      
+      .bullet-time-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
     }
   </style>
 </head>
@@ -465,6 +560,7 @@
           <path d="M24 12 L20 14 L24 16 Z" fill="#ff9800"/>
         </svg>
       </button>
+      <button class="bullet-time-btn" id="bulletTimeBtn">🔴</button>
       <button class="electric-wave-btn" id="electricWaveBtn">⚡</button>
       <button class="fuel-btn" id="fuelBtn">⛽</button>
       <button class="shoot-btn" id="shootBtn"><img src="bullet.png" alt="Bullet" style="width: 30px; height: 30px;"></button>
@@ -496,6 +592,7 @@
     const fuelBtn = document.getElementById('fuelBtn');
     const electricWaveBtn = document.getElementById('electricWaveBtn');
     const missileBtn = document.getElementById('missileBtn');
+    const bulletTimeBtn = document.getElementById('bulletTimeBtn');
     
     // Thiết lập canvas fullscreen
     function resizeCanvas() {
@@ -534,7 +631,7 @@
     // Hệ thống tuyệt chiêu tên lửa
     const missileSystem = {
       isReady: true,
-      cooldownTime:  3, // 3 giây cooldown
+      cooldownTime:  1000, // 3 giây cooldown
       currentCooldown: 0,
       missiles: [], // Mảng chứa các tên lửa đang bay
       missileSpeed: 6, // Tốc độ tên lửa
@@ -695,7 +792,14 @@
         hp: 10,
         maxHp: 10,
         worldX: 400, // Vị trí thực trong thế giới
-        worldY: 300
+        worldY: 300,
+        shootCooldown: 0,
+        shootInterval: 10, // Thời gian chờ giữa các lần bắn (frames)
+        angle: -Math.PI / 2, // Góc xoay của xe tăng (mặc định hướng lên)
+        turretAngle: -Math.PI / 2, // Góc xoay của nòng pháo (có thể khác với thân xe)
+        autoAim: true, // Bật tự động nhắm
+        canShootWhileMoving: true, // Có thể bắn trong khi di chuyển
+        autoShoot: false // Bắn tự động khi có mục tiêu
     };
 
     // Xe tăng nhỏ hỗ trợ
@@ -726,10 +830,80 @@
 
 
     function drawBullet(bullet, color = '#ffeb3b') {
-      ctx.fillStyle = color;
+      // Nếu là laser, vẽ tia laser thay vì viên đạn tròn
+      if (bullet.isLaser) {
+        drawLaser(bullet);
+      } else {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawLaser(bullet) {
+      ctx.save();
+      
+      // Tính toán điểm bắt đầu từ xe tăng
+      const startX = tank.x + 30; // Giữa xe tăng
+      const startY = tank.y + 10; // Phía trước xe tăng
+      
+      // Tính toán điểm cuối của tia laser (bắn thẳng lên)
+      const laserLength = canvas.height + 100; // Độ dài tia laser đến hết màn hình
+      const endX = startX;
+      const endY = startY - laserLength;
+      
+      // Vẽ tia laser ngoài (màu xanh dương đậm với hiệu ứng phát sáng)
+      ctx.strokeStyle = '#0080ff';
+      ctx.lineWidth = 12;
+      ctx.lineCap = 'round';
+      ctx.shadowColor = '#0080ff';
+      ctx.shadowBlur = 20;
       ctx.beginPath();
-      ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      
+      // Vẽ tia laser giữa (màu xanh dương sáng)
+      ctx.strokeStyle = '#00bfff';
+      ctx.lineWidth = 8;
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      
+      // Vẽ lõi laser (màu trắng)
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.stroke();
+      
+      // Vẽ hiệu ứng lấp lánh dọc theo tia laser
+      for (let i = 0; i < 8; i++) {
+        const sparkY = startY - (i * 80 + Math.random() * 60);
+        const sparkX = startX + (Math.random() - 0.5) * 20;
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#00bfff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(sparkX, sparkY, 1 + Math.random() * 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Vẽ hiệu ứng năng lượng ở đầu súng
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = '#00bfff';
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(startX, startY, 8, 0, Math.PI * 2);
       ctx.fill();
+      
+      ctx.restore();
     }
 
     function drawExplosion(x, y) {
@@ -953,9 +1127,41 @@
       }
     }
 
-function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = false, hp, maxHp) {
+// Hàm tìm kẻ thù gần nhất để nhắm
+function findNearestEnemy(tankX, tankY) {
+  let nearestEnemy = null;
+  let minDistance = Infinity;
+  
+  for (let enemy of enemies) {
+    if (enemy.hp <= 0) continue; // Bỏ qua kẻ thù đã chết
+    
+    let dx = enemy.x + 30 - (tankX + 30); // Tính từ tâm xe tăng
+    let dy = enemy.y + 35 - (tankY + 35);
+    let distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestEnemy = enemy;
+    }
+  }
+  
+  return nearestEnemy;
+}
+
+// Hàm tính góc nhắm đến mục tiêu
+function calculateAimAngle(fromX, fromY, toX, toY) {
+  let dx = toX - fromX;
+  let dy = toY - fromY;
+  return Math.atan2(dy, dx);
+}
+
+function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = false, hp, maxHp, angle = -Math.PI/2, turretAngle = null) {
   // reverse = false: xe tăng hướng lên, true: hướng xuống
+  // angle: góc xoay của thân xe tăng
+  // turretAngle: góc xoay của nòng pháo (nếu null thì dùng angle)
   ctx.save();
+  
+  // Nếu là xe tăng enemy thì vẽ theo cách cũ
   if (reverse) {
     ctx.translate(x + 30, y + 35);
     ctx.rotate(Math.PI);
@@ -976,22 +1182,62 @@ function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = fa
     else ctx.fillStyle = '#f44336'; // đỏ
     ctx.fillRect(x + 5, y - 15, 50 * percent, 7);
   }
-  // Thân xe
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y + 20, 60, 30);
-  // Tháp pháo
-  ctx.fillStyle = turretColor;
-  ctx.fillRect(x + 15, y, 30, 30);
-  // Nòng pháo
-  ctx.fillStyle = '#222';
-  ctx.fillRect(x + 27, y - 20, 6, 20);
-  // Bánh xe
-  ctx.fillStyle = '#222';
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath();
-    ctx.arc(x + 15 + i * 15, y + 50, 8, 0, Math.PI * 2);
-    ctx.fill();
+  
+  // Vẽ xe tăng với nòng pháo xoay được (chỉ cho xe tăng người chơi)
+  if (!reverse && turretAngle !== null) {
+    // Vẽ xe tăng với thân xe có thể xoay
+    ctx.save();
+    ctx.translate(x + 30, y + 35); // Di chuyển đến tâm xe tăng
+    ctx.rotate(angle + Math.PI/2); // Xoay thân xe theo hướng di chuyển
+    
+    // Thân xe (vẽ từ tâm)
+    ctx.fillStyle = color;
+    ctx.fillRect(-30, -15, 60, 30);
+    
+    // Bánh xe (vẽ từ tâm)
+    ctx.fillStyle = '#222';
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(-15 + i * 15, 15, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    ctx.restore();
+    
+    // Tháp pháo (luôn ở tâm xe tăng, không xoay theo thân xe)
+    ctx.fillStyle = turretColor;
+    ctx.fillRect(x + 15, y + 20, 30, 30);
+    
+    // Vẽ nòng pháo xoay được
+    ctx.save();
+    ctx.translate(x + 30, y + 35); // Di chuyển đến tâm tháp pháo
+    ctx.rotate(turretAngle); // Xoay theo góc nhắm
+    
+    // Vẽ nòng pháo
+    ctx.fillStyle = '#222';
+    ctx.fillRect(-3, -20, 6, 20); // Nòng pháo từ tâm tháp pháo
+    
+    ctx.restore();
+  } else {
+    // Vẽ xe tăng enemy theo cách cũ
+    // Thân xe
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y + 20, 60, 30);
+    // Tháp pháo
+    ctx.fillStyle = turretColor;
+    ctx.fillRect(x + 15, y, 30, 30);
+    // Nòng pháo
+    ctx.fillStyle = '#222';
+    ctx.fillRect(x + 27, y - 20, 6, 20);
+    // Bánh xe
+    ctx.fillStyle = '#222';
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(x + 15 + i * 15, y + 50, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
+  
   ctx.restore();
 }
 
@@ -1186,18 +1432,44 @@ function update() {
   // Smooth tank movement với hệ thống thế giới vô tận
   let newWorldX = tank.worldX;
   let newWorldY = tank.worldY;
+  let isMoving = false;
+  let moveX = 0;
+  let moveY = 0;
   
   if (keys['ArrowLeft']) {
     newWorldX -= tank.speed;
+    moveX = -1;
+    isMoving = true;
   }
   if (keys['ArrowRight']) {
     newWorldX += tank.speed;
+    moveX = 1;
+    isMoving = true;
   }
   if (keys['ArrowUp']) {
     newWorldY -= tank.speed;
+    moveY = -1;
+    isMoving = true;
   }
   if (keys['ArrowDown']) {
     newWorldY += tank.speed;
+    moveY = 1;
+    isMoving = true;
+  }
+  
+  // Cập nhật góc xoay của thân xe tăng dựa trên hướng di chuyển
+  if (isMoving) {
+    tank.angle = Math.atan2(moveY, moveX);
+    
+    // Điều chỉnh tốc độ cho di chuyển chéo để tránh di chuyển nhanh hơn
+    if (moveX !== 0 && moveY !== 0) {
+      // Di chuyển chéo, giảm tốc độ xuống √2/2 ≈ 0.707
+      let diagonalSpeed = tank.speed * 0.707;
+      tank.worldX = tank.worldX - (newWorldX - tank.worldX) + moveX * diagonalSpeed;
+      tank.worldY = tank.worldY - (newWorldY - tank.worldY) + moveY * diagonalSpeed;
+      newWorldX = tank.worldX;
+      newWorldY = tank.worldY;
+    }
   }
   
   // Cập nhật vị trí thế giới
@@ -1219,20 +1491,77 @@ function update() {
   // Cập nhật xe tăng hỗ trợ
   updateSupportTank();
 
-  // Bắn đạn
-  if (keys[' ']) {
-    bullets.push({ x: tank.x + 30, y: tank.y, worldX: tank.worldX + 30, worldY: tank.worldY });
-    keys[' '] = false; // Chỉ bắn một viên mỗi lần nhấn
+  // Cập nhật tự động nhắm mục tiêu
+  if (tank.autoAim) {
+    let nearestEnemy = findNearestEnemy(tank.x, tank.y);
+    if (nearestEnemy) {
+      // Tính góc nhắm đến kẻ thù gần nhất
+      let targetX = nearestEnemy.x + 30; // Tâm kẻ thù
+      let targetY = nearestEnemy.y + 35;
+      let tankCenterX = tank.x + 30; // Tâm xe tăng
+      let tankCenterY = tank.y + 35;
+      
+      tank.turretAngle = calculateAimAngle(tankCenterX, tankCenterY, targetX, targetY);
+    } else {
+      // Không có kẻ thù, nhắm thẳng lên
+      tank.turretAngle = -Math.PI / 2;
+    }
+  }
+
+  // Cập nhật cooldown bắn đạn
+  if (tank.shootCooldown > 0) {
+    tank.shootCooldown--;
+  }
+
+  // Bắn đạn (có thể bắn trong khi di chuyển)
+  let shouldShoot = keys[' '] || (tank.autoShoot && findNearestEnemy(tank.x, tank.y) !== null);
+  if (shouldShoot && tank.shootCooldown <= 0) {
+    if (bulletTimeSystem.isActive) {
+      // Khi laser hoạt động, chỉ đánh dấu laser đang bắn
+      bulletTimeSystem.laserActive = true;
+    } else {
+      // Tính vị trí bắn từ đầu nòng pháo
+      let barrelLength = 20;
+      let barrelX = tank.x + 30 + Math.cos(tank.turretAngle) * barrelLength;
+      let barrelY = tank.y + 35 + Math.sin(tank.turretAngle) * barrelLength;
+      let worldBarrelX = tank.worldX + 30 + Math.cos(tank.turretAngle) * barrelLength;
+      let worldBarrelY = tank.worldY + 35 + Math.sin(tank.turretAngle) * barrelLength;
+      
+      // Bắn đạn theo hướng nhắm
+      bullets.push({ 
+        x: barrelX, 
+        y: barrelY, 
+        worldX: worldBarrelX, 
+        worldY: worldBarrelY,
+        color: '#ffeb3b',
+        isLaser: false,
+        angle: tank.turretAngle // Bắn theo góc nhắm
+      });
+      
+      tank.shootCooldown = tank.shootInterval;
+      keys[' '] = false; // Chỉ bắn một viên mỗi lần nhấn
+    }
+  }
+  
+  // Nếu không nhấn space, tắt laser
+  if (!keys[' ']) {
+    bulletTimeSystem.laserActive = false;
   }
 
   // Cập nhật đạn của người chơi
   for (let i = bullets.length - 1; i >= 0; i--) {
     let bullet = bullets[i];
-    bullet.worldY -= bulletSpeed;
+    
+    // Di chuyển đạn theo góc bắn
+    let speed = bulletSpeed;
+    bullet.worldX += Math.cos(bullet.angle) * speed;
+    bullet.worldY += Math.sin(bullet.angle) * speed;
+    bullet.x = bullet.worldX - worldSystem.offsetX;
     bullet.y = bullet.worldY - worldSystem.offsetY;
     
-    // Xóa đạn nếu ra khỏi màn hình
-    if (bullet.y < -10) {
+    // Xóa đạn nếu ra khỏi màn hình hoặc đi quá xa
+    if (bullet.x < -50 || bullet.x > canvas.width + 50 || 
+        bullet.y < -50 || bullet.y > canvas.height + 50) {
       bullets.splice(i, 1);
     }
   }
@@ -1342,6 +1671,44 @@ function update() {
     }
   }
 
+  // Kiểm tra va chạm laser với enemies
+  if (bulletTimeSystem.isActive && bulletTimeSystem.laserActive) {
+    const laserX = tank.x + 30;
+    const laserWidth = 12; // Độ rộng tia laser
+    
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let enemy = enemies[j];
+      
+      // Kiểm tra nếu enemy nằm trong đường laser (theo trục X) và phía trên xe tăng (theo trục Y)
+      if (enemy.x < laserX + laserWidth/2 && enemy.x + 60 > laserX - laserWidth/2 && 
+          enemy.y < tank.y) {
+        
+        // Giảm máu enemy liên tục (laser gây sát thương cao)
+        enemy.hp -= 0.2; // Giảm từ từ để tạo hiệu ứng laser đốt cháy
+        
+        // Thêm hiệu ứng nổ
+        if (typeof window.explosions === 'undefined') window.explosions = [];
+        if (Math.random() < 0.3) { // Hiệu ứng nổ ngẫu nhiên
+          window.explosions.push({ x: enemy.x + Math.random() * 60, y: enemy.y + Math.random() * 70, time: 0 });
+        }
+        
+        // Nếu máu về 0 thì thêm hiệu ứng nổ lớn và xóa xe tăng
+        if (enemy.hp <= 0) {
+          window.explosions.push({ x: enemy.x, y: enemy.y, time: 0 });
+          enemies.splice(j, 1);
+          
+          // Tăng số quân địch đã tiêu diệt
+          victorySystem.enemiesKilled++;
+          
+          // Kiểm tra điều kiện chiến thắng
+          if (victorySystem.enemiesKilled >= victorySystem.targetKills) {
+            victorySystem.gameWon = true;
+          }
+        }
+      }
+    }
+  }
+
   // Kiểm tra va chạm đạn xe tăng hỗ trợ với enemies
   for (let i = supportBullets.length - 1; i >= 0; i--) {
     for (let j = enemies.length - 1; j >= 0; j--) {
@@ -1441,7 +1808,24 @@ function update() {
 
   // Vẽ tank người chơi (chỉ khi còn sống)
   if (tank.hp > 0) {
-    drawTank(tank.x, tank.y, '#4caf50', '#388e3c', false, tank.hp, tank.maxHp);
+    drawTank(tank.x, tank.y, '#4caf50', '#388e3c', false, tank.hp, tank.maxHp, tank.angle, tank.turretAngle);
+    
+    // Vẽ đường chỉ báo hướng nhắm (chỉ khi tự động nhắm bật)
+    if (tank.autoAim) {
+      let nearestEnemy = findNearestEnemy(tank.x, tank.y);
+      if (nearestEnemy) {
+        ctx.save();
+        ctx.strokeStyle = '#ff5722';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]); // Đường đứt nét
+        ctx.beginPath();
+        ctx.moveTo(tank.x + 30, tank.y + 35);
+        ctx.lineTo(nearestEnemy.x + 30, nearestEnemy.y + 35);
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset về đường liền nét
+        ctx.restore();
+      }
+    }
   }
 
   // Vẽ xe tăng hỗ trợ (chỉ khi còn sống)
@@ -1454,9 +1838,14 @@ function update() {
     drawTank(enemy.x, enemy.y, '#f44336', '#d32f2f', true, enemy.hp, enemy.maxHp);
   }
 
+  // Vẽ tia laser nếu đang hoạt động
+  if (bulletTimeSystem.isActive && bulletTimeSystem.laserActive) {
+    drawLaser({ x: tank.x + 30, y: tank.y });
+  }
+
   // Vẽ đạn của người chơi
   for (let bullet of bullets) {
-    drawBullet(bullet, '#ffeb3b');
+    drawBullet(bullet, bullet.color || '#ffeb3b');
   }
 
   // Vẽ đạn của xe tăng hỗ trợ
@@ -1586,6 +1975,36 @@ function update() {
     if (electricWaveSystem.currentCooldown <= 0) {
       electricWaveSystem.isReady = true;
       updateElectricWaveButton();
+    }
+  }
+  
+  // Cập nhật cooldown bình nhiên liệu
+  if (!fuelSystem.isReady) {
+    fuelSystem.currentCooldown -= 16.67; // Giả sử 60 FPS
+    if (fuelSystem.currentCooldown <= 0) {
+      fuelSystem.isReady = true;
+      updateFuelButton();
+    }
+  }
+  
+  // Cập nhật Bắn laser
+  if (bulletTimeSystem.isActive) {
+    bulletTimeSystem.currentDuration -= 16.67; // Giả sử 60 FPS
+    if (bulletTimeSystem.currentDuration <= 0) {
+      // Kết thúc Bắn laser
+      bulletTimeSystem.isActive = false;
+      bulletTimeSystem.currentCooldown = bulletTimeSystem.cooldownTime;
+      
+      // Khôi phục thời gian bắn gốc (không cần làm gì vì logic bắn tự xử lý)
+      
+      updateBulletTimeButton();
+      showBulletTimeMessage("🔴 Bắn laser kết thúc!");
+    }
+  } else if (!bulletTimeSystem.isReady) {
+    bulletTimeSystem.currentCooldown -= 16.67; // Giả sử 60 FPS
+    if (bulletTimeSystem.currentCooldown <= 0) {
+      bulletTimeSystem.isReady = true;
+      updateBulletTimeButton();
     }
   }
 
@@ -1746,28 +2165,83 @@ function update() {
   ctx.fillText(`HP: ${tank.hp}/${tank.maxHp}`, 20, 20);
   ctx.fillText(`Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, 20, 40);
   
+  // Hiển thị cooldown bình nhiên liệu
+  if (!fuelSystem.isReady) {
+    let cooldownSeconds = Math.ceil(fuelSystem.currentCooldown / 1000);
+    ctx.fillStyle = '#4caf50';
+    ctx.fillText(`⛽ Nhiên liệu: ${cooldownSeconds}s`, 20, 60);
+  } else {
+    ctx.fillStyle = '#4caf50';
+    ctx.fillText(`⛽ Nhiên liệu: Sẵn sàng`, 20, 60);
+  }
+  
+  // Hiển thị thông báo fuel
+  if (fuelMessage.time > 0) {
+    ctx.fillStyle = '#4caf50';
+    ctx.fillText(fuelMessage.text, 20, 80);
+    fuelMessage.time--;
+  }
+  
+  // Hiển thị thông báo bắn laser
+  if (bulletTimeMessage.time > 0) {
+    ctx.fillStyle = '#2196f3';
+    ctx.fillText(bulletTimeMessage.text, 20, 160);
+    bulletTimeMessage.time--;
+  }
+  
+  // Hiển thị thông báo chung
+  if (generalMessage.time > 0) {
+    ctx.fillStyle = '#ffeb3b';
+    ctx.fillText(generalMessage.text, 20, 180);
+    generalMessage.time--;
+  }
+  
+  // Hiển thị trạng thái tự động nhắm và bắn tự động
+  ctx.fillStyle = tank.autoAim ? '#4caf50' : '#f44336';
+  ctx.fillText(`🎯 Tự động nhắm: ${tank.autoAim ? 'BẬT' : 'TẮT'} (A)`, 20, 200);
+  
+  ctx.fillStyle = tank.autoShoot ? '#4caf50' : '#f44336';
+  ctx.fillText(`🔫 Bắn tự động: ${tank.autoShoot ? 'BẬT' : 'TẮT'} (Z)`, 20, 220);
+  
   // Hiển thị cooldown sóng điện
   if (!electricWaveSystem.isReady) {
     let cooldownSeconds = Math.ceil(electricWaveSystem.currentCooldown / 1000);
     ctx.fillStyle = '#8a2be2';
-    ctx.fillText(`⚡ Sóng điện: ${cooldownSeconds}s`, 20, 60);
+    ctx.fillText(`⚡ Sóng điện: ${cooldownSeconds}s`, 20, 100);
   } else {
     ctx.fillStyle = '#8a2be2';
-    ctx.fillText(`⚡ Sóng điện: Sẵn sàng`, 20, 60);
+    ctx.fillText(`⚡ Sóng điện: Sẵn sàng`, 20, 100);
   }
   
   // Hiển thị cooldown tên lửa
   if (!missileSystem.isReady) {
     let cooldownSeconds = Math.ceil(missileSystem.currentCooldown / 1000);
     ctx.fillStyle = '#ff5722';
-    ctx.fillText(`🚀 Tên lửa: ${cooldownSeconds}s`, 20, 80);
+    ctx.fillText(`🚀 Tên lửa: ${cooldownSeconds}s`, 20, 120);
   } else {
     ctx.fillStyle = '#ff5722';
-    ctx.fillText(`🚀 Tên lửa: Sẵn sàng`, 20, 80);
+    ctx.fillText(`🚀 Tên lửa: Sẵn sàng`, 20, 120);
+  }
+  
+  // Hiển thị trạng thái Bắn laser
+  if (bulletTimeSystem.isActive) {
+    let durationSeconds = Math.ceil(bulletTimeSystem.currentDuration / 1000);
+    ctx.fillStyle = '#2196f3';
+    ctx.fillText(`🔴 Bắn laser: ${durationSeconds}s`, 20, 140);
+  } else if (!bulletTimeSystem.isReady) {
+    let cooldownSeconds = Math.ceil(bulletTimeSystem.currentCooldown / 1000);
+    ctx.fillStyle = '#2196f3';
+    ctx.fillText(`🔴 Bắn laser: ${cooldownSeconds}s`, 20, 140);
+  } else {
+    ctx.fillStyle = '#2196f3';
+    ctx.fillText(`🔴 Bắn laser: Sẵn sàng`, 20, 140);
   }
   ctx.restore();
 
-  // Hệ thống bình nhiên liệu - không có thời gian chờ
+  // Cập nhật trạng thái nút bình nhiên liệu
+  updateFuelButton();
+  
+  // Hệ thống bình nhiên liệu - thời gian chờ 3 giây
 }
 
 // Thêm nút chơi lại
@@ -1839,8 +2313,9 @@ function resetGame() {
   enemyIdCounter = 0;
   gameStarted = true;
   
-  // Reset hệ thống bình nhiên liệu - luôn sẵn sàng
+  // Reset hệ thống bình nhiên liệu
   fuelSystem.isReady = true;
+  fuelSystem.currentCooldown = 0;
   updateFuelButton();
   
   // Reset hệ thống sóng điện
@@ -1854,6 +2329,13 @@ function resetGame() {
   missileSystem.currentCooldown = 0;
   missileSystem.missiles = [];
   updateMissileButton();
+  
+  // Reset hệ thống Bắn laser
+  bulletTimeSystem.isActive = false;
+  bulletTimeSystem.isReady = true;
+  bulletTimeSystem.currentDuration = 0;
+  bulletTimeSystem.currentCooldown = 0;
+  updateBulletTimeButton();
   
   // Reset hệ thống chiến thắng
   victorySystem.enemiesKilled = 0;
@@ -1891,6 +2373,23 @@ function resetGame() {
       if (e.key === '1') {
         useMissile();
       }
+      
+      // Phím T để sử dụng Đạn thời gian
+      if (e.key === 't' || e.key === 'T') {
+        useBulletTime();
+      }
+      
+      // Phím A để bật/tắt tự động nhắm
+      if (e.key === 'a' || e.key === 'A') {
+        tank.autoAim = !tank.autoAim;
+        showMessage(tank.autoAim ? "🎯 Tự động nhắm: BẬT" : "🎯 Tự động nhắm: TẮT");
+      }
+      
+      // Phím Z để bật/tắt bắn tự động
+      if (e.key === 'z' || e.key === 'Z') {
+        tank.autoShoot = !tank.autoShoot;
+        showMessage(tank.autoShoot ? "🔫 Bắn tự động: BẬT" : "🔫 Bắn tự động: TẮT");
+      }
     });
     document.addEventListener('keyup', function(e) {
       keys[e.key] = false;
@@ -1899,26 +2398,119 @@ function resetGame() {
     // Hệ thống bình nhiên liệu
     const fuelSystem = {
       isReady: true,
-      cooldownTime: 0, // Không có thời gian chờ
+      cooldownTime: 3000, // 3 giây thời gian chờ
       currentCooldown: 0
     };
 
     function useFuel() {
-      if (fuelSystem.isReady && tank.hp < tank.maxHp) {
-        tank.hp = Math.min(tank.hp + 2, tank.maxHp); // Hồi 2 máu
-        // Không có thời gian chờ, có thể sử dụng liên tục
+      if (fuelSystem.isReady) {
+        let fuelUsed = false;
+        
+        // Ưu tiên bơm cho xe tăng chính trước
+        if (tank.hp < tank.maxHp) {
+          tank.hp = Math.min(tank.hp + 2, tank.maxHp); // Hồi 2 máu cho xe tăng chính
+          // Hiển thị thông báo ngắn
+          showFuelMessage("Bơm máu xe tăng chính +2 ❤️");
+          fuelUsed = true;
+        }
+        // Nếu xe tăng chính đã đầy máu, bơm cho xe tăng nhỏ
+        else if (supportTank.hp > 0 && supportTank.hp < supportTank.maxHp) {
+          supportTank.hp = Math.min(supportTank.hp + 2, supportTank.maxHp); // Hồi 2 máu cho xe tăng nhỏ
+          // Hiển thị thông báo ngắn
+          showFuelMessage("Bơm máu xe tăng nhỏ +2 💙");
+          fuelUsed = true;
+        }
+        
+        // Nếu đã sử dụng fuel, bắt đầu thời gian chờ
+        if (fuelUsed) {
+          fuelSystem.isReady = false;
+          fuelSystem.currentCooldown = fuelSystem.cooldownTime;
+        }
+        
         updateFuelButton();
       }
     }
 
+    // Hệ thống thông báo fuel
+    let fuelMessage = { text: '', time: 0 };
+    
+    function showFuelMessage(text) {
+      fuelMessage.text = text;
+      fuelMessage.time = 60; // Hiển thị trong 60 frames (1 giây)
+    }
+    
     function updateFuelButton() {
-      if (fuelSystem.isReady) {
+      // Kiểm tra xem có thể bơm cho xe tăng chính hoặc xe tăng nhỏ không
+      const canRefuelMainTank = tank.hp < tank.maxHp;
+      const canRefuelSupportTank = supportTank.hp > 0 && supportTank.hp < supportTank.maxHp;
+      
+      if (fuelSystem.isReady && (canRefuelMainTank || canRefuelSupportTank)) {
         fuelBtn.classList.remove('disabled');
         fuelBtn.style.opacity = '1';
       } else {
         fuelBtn.classList.add('disabled');
         fuelBtn.style.opacity = '0.5';
       }
+    }
+
+    // Hệ thống Bắn laser
+    const bulletTimeSystem = {
+      isActive: false,
+      isReady: true,
+      duration: 30000, // 30 giây
+      cooldownTime: 10000, // 10 giây thời gian chờ
+      currentDuration: 0,
+      currentCooldown: 0,
+      originalShootCooldown: 10, // Lưu lại thời gian bắn gốc
+      laserActive: false // Trạng thái tia laser có đang hoạt động không
+    };
+
+    function useBulletTime() {
+      if (bulletTimeSystem.isReady && !bulletTimeSystem.isActive) {
+        bulletTimeSystem.isActive = true;
+        bulletTimeSystem.isReady = false;
+        bulletTimeSystem.currentDuration = bulletTimeSystem.duration;
+        
+        // Lưu lại thời gian bắn gốc và đặt thành 0 (bắn liên tục)
+        bulletTimeSystem.originalShootCooldown = tank.shootInterval;
+        // Không cần thay đổi tank.shootCooldown ở đây vì logic bắn đã xử lý
+        
+        // Cập nhật giao diện nút
+        updateBulletTimeButton();
+        
+        // Hiển thị thông báo
+        showBulletTimeMessage("🔴 Bắn laser kích hoạt!");
+      }
+    }
+
+    function updateBulletTimeButton() {
+      if (bulletTimeSystem.isActive) {
+        bulletTimeBtn.classList.add('active');
+        bulletTimeBtn.classList.remove('disabled');
+      } else if (bulletTimeSystem.isReady) {
+        bulletTimeBtn.classList.remove('disabled', 'active');
+        bulletTimeBtn.style.opacity = '1';
+      } else {
+        bulletTimeBtn.classList.add('disabled');
+        bulletTimeBtn.classList.remove('active');
+        bulletTimeBtn.style.opacity = '0.5';
+      }
+    }
+
+    // Hệ thống thông báo bắn laser
+    let bulletTimeMessage = { text: '', time: 0 };
+    
+    function showBulletTimeMessage(text) {
+      bulletTimeMessage.text = text;
+      bulletTimeMessage.time = 60; // Hiển thị trong 60 frames (1 giây)
+    }
+
+    // Hệ thống thông báo chung
+    let generalMessage = { text: '', time: 0 };
+    
+    function showMessage(text) {
+      generalMessage.text = text;
+      generalMessage.time = 120; // Hiển thị trong 120 frames (2 giây)
     }
 
     function initWorldSystem() {
@@ -1999,6 +2591,10 @@ function resetGame() {
       // Nút tên lửa
       missileBtn.addEventListener('click', useMissile);
       missileBtn.addEventListener('touchstart', (e) => { e.preventDefault(); useMissile(); });
+      
+      // Nút Bắn laser
+      bulletTimeBtn.addEventListener('click', useBulletTime);
+      bulletTimeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); useBulletTime(); });
     }
     
     function startJoystick(e) {
@@ -2118,6 +2714,9 @@ startBtn.addEventListener('click', function() {
       
       // Khởi tạo trạng thái nút tên lửa
       updateMissileButton();
+      
+      // Khởi tạo trạng thái nút Bắn laser
+      updateBulletTimeButton();
       
       bgm.currentTime = 0;
       // Try to play audio, fallback if blocked
