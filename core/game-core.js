@@ -222,6 +222,12 @@ export class GameCore {
       }
     });
 
+    // Fullscreen change event listener
+    document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
+    document.addEventListener('webkitfullscreenchange', () => this.handleFullscreenChange());
+    document.addEventListener('mozfullscreenchange', () => this.handleFullscreenChange());
+    document.addEventListener('MSFullscreenChange', () => this.handleFullscreenChange());
+
     // Fallback click handler
     setTimeout(() => {
       if (!this.gameStarted) {
@@ -241,6 +247,9 @@ export class GameCore {
       e.preventDefault();
       e.stopPropagation();
     }
+    
+    // Request fullscreen
+    this.requestFullscreen();
     
     const startBtn = document.getElementById('startBtn');
     if (startBtn) startBtn.style.display = 'none';
@@ -292,6 +301,56 @@ export class GameCore {
     });
     
     this.gameLoop();
+  }
+
+  requestFullscreen() {
+    try {
+      const element = document.documentElement;
+      
+      if (element.requestFullscreen) {
+        element.requestFullscreen().catch(err => {
+          console.log('Fullscreen request failed:', err);
+        });
+      } else if (element.webkitRequestFullscreen) {
+        // Safari
+        element.webkitRequestFullscreen();
+      } else if (element.mozRequestFullScreen) {
+        // Firefox
+        element.mozRequestFullScreen();
+      } else if (element.msRequestFullscreen) {
+        // IE/Edge
+        element.msRequestFullscreen();
+      } else {
+        console.log('Fullscreen API not supported');
+      }
+    } catch (error) {
+      console.log('Error requesting fullscreen:', error);
+    }
+  }
+
+  handleFullscreenChange() {
+    const isFullscreen = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+    
+    if (isFullscreen) {
+      console.log('Entered fullscreen mode');
+      // Resize canvas when entering fullscreen
+      this.resizeCanvas();
+      if (this.gameStarted && this.tank) {
+        this.positionTank();
+      }
+    } else {
+      console.log('Exited fullscreen mode');
+      // Resize canvas when exiting fullscreen
+      this.resizeCanvas();
+      if (this.gameStarted && this.tank) {
+        this.positionTank();
+      }
+    }
   }
 
   gameLoop() {
