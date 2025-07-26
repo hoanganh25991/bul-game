@@ -26,7 +26,7 @@ Một trò chơi bắn xe tăng đơn giản trên trình duyệt. Di chuyển x
 - Nếu trình duyệt chặn tự động phát nhạc, hãy click vào bất kỳ đâu trên trang sau khi bắt đầu để bật nhạc.
 - Chơi tốt nhất trên các trình duyệt hiện đại (Chrome, Firefox, Edge, Safari).
 
-## Game
+## Cấu trúc dự án
 
 /bul-game/
 ├── tank.html          # Clean HTML with external CSS
@@ -34,6 +34,14 @@ Một trò chơi bắn xe tăng đơn giản trên trình duyệt. Di chuyển x
 ├── game.js           # Game logic
 ├── config.js         # Configuration
 └── [other assets...]
+
+## License
+
+Copyright © 2025 Monk Journey Team. All Rights Reserved.
+
+This project is proprietary and confidential. Unauthorized reproduction, distribution, or disclosure is prohibited. No license, express or implied, to any intellectual property rights is granted by this document.
+
+See the [LICENSE](LICENSE) file for full details.
 
 ---
 
