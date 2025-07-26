@@ -11,7 +11,7 @@ export class Renderer {
     this.scaleFactor = scaleFactor;
   }
 
-  render(worldSystem, cameraSystem, tank, enemies, bullets, weapons) {
+  render(worldSystem, cameraSystem, tank, enemies, bullets, weapons, enemyBullets = []) {
     // Draw terrain and decorations
     this.drawTerrain(worldSystem, cameraSystem);
     this.drawDecorations(worldSystem, cameraSystem);
@@ -32,6 +32,14 @@ export class Renderer {
     
     bullets.getSupportBullets().forEach(bullet => {
       this.drawBullet(bullet, CONFIG.colors.supportBullet);
+    });
+    
+    // Draw enemy bullets
+    if (enemyBullets.length > 0) {
+      console.log('Rendering', enemyBullets.length, 'enemy bullets');
+    }
+    enemyBullets.forEach(bullet => {
+      this.drawBullet(bullet, CONFIG.colors.enemyBullet);
     });
     
     // Draw weapon effects

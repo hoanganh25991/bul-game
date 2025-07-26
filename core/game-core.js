@@ -345,7 +345,8 @@ export class GameCore {
         this.tank,
         this.enemies.getEnemies(),
         this.bullets,
-        this.weapons
+        this.weapons,
+        this.enemies.getEnemyBullets()
       );
       
       // Render UI

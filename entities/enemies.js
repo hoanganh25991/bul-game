@@ -23,6 +23,7 @@ export class Enemies {
   spawnEnemies(tank, cameraSystem, frameCount) {
     // Spawn enemies based on frame count
     if (frameCount % CONFIG.enemies.spawnInterval === 0 && frameCount > 0) {
+      console.log('CONFIG values at spawn time - HP:', CONFIG.enemies.hp, 'Speed:', CONFIG.enemies.speed, 'Spawn Interval:', CONFIG.enemies.spawnInterval);
       // Spawn enemies around the camera view in world coordinates
       const spawnDistance = Math.max(window.innerWidth, window.innerHeight) / 2 + 200;
       let worldX, worldY;
@@ -47,18 +48,28 @@ export class Enemies {
           break;
       }
       
+      // Create enemy with fresh values to prevent any reference issues
+      const enemyConfig = {
+        hp: CONFIG.enemies.hp,
+        maxHp: CONFIG.enemies.maxHp,
+        speed: CONFIG.enemies.speed,
+        shootInterval: CONFIG.enemies.shootInterval || 120
+      };
+      
       this.enemies.push({
         id: this.enemyIdCounter++,
         worldX: worldX,
         worldY: worldY,
         x: 0, // Will be calculated by worldToScreen
         y: 0, // Will be calculated by worldToScreen
-        hp: CONFIG.enemies.hp, // Create a copy to prevent reference issues
-        maxHp: CONFIG.enemies.maxHp,
-        speed: CONFIG.enemies.speed,
+        hp: enemyConfig.hp,
+        maxHp: enemyConfig.maxHp,
+        speed: enemyConfig.speed,
         shootCooldown: 0,
-        shootInterval: CONFIG.enemies.shootInterval || 120
+        shootInterval: enemyConfig.shootInterval
       });
+      
+      console.log('Enemy spawned with HP:', enemyConfig.hp, 'Speed:', enemyConfig.speed, 'Shoot Interval:', enemyConfig.shootInterval);
     }
   }
 
@@ -127,6 +138,7 @@ export class Enemies {
         dx: (dx / distance) * bulletSpeed,
         dy: (dy / distance) * bulletSpeed
       });
+      console.log('Enemy bullet created! Total enemy bullets:', this.enemyBullets.length);
     }
   }
 

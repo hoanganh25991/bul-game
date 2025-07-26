@@ -124,6 +124,7 @@ export const CONFIG = {
     },
     bullet: '#ffeb3b',
     supportBullet: '#2196f3',
+    enemyBullet: '#ff5722',
     laser: {
       outer: '#0080ff',
       middle: '#00bfff',
