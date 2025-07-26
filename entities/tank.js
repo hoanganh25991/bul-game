@@ -110,11 +110,15 @@ export class Tank {
 
   shoot() {
     if (this.shootCooldown <= 0 && window.gameCore?.bullets) {
+      // Fire from the center of the tank (middle of main gun) at the cannon tip
+      const gunCenterX = this.worldX + 30; // Tank center X (tank width is 60px, so center is +30)
+      const gunTipY = this.worldY - 12; // Cannon tip Y position
+      
       window.gameCore.bullets.addBullet({
-        worldX: this.worldX,
-        worldY: this.worldY - 20, // Shoot from front of tank
-        x: this.x, // Screen position (will be updated)
-        y: this.y - 20, // Screen position (will be updated)
+        worldX: gunCenterX,
+        worldY: gunTipY,
+        x: this.x + 30, // Screen position (will be updated)
+        y: this.y - 12, // Screen position (will be updated)
         dx: 0,
         dy: -CONFIG.bullets.speed
       });
@@ -124,11 +128,15 @@ export class Tank {
 
   supportTankShoot() {
     if (this.supportTank.shootCooldown <= 0 && window.gameCore?.bullets) {
+      // Fire from the center of the support tank (middle of main gun) at the cannon tip
+      const gunCenterX = this.supportTank.worldX + 18; // Support tank center X (tank width is 36px, so center is +18)
+      const gunTipY = this.supportTank.worldY - 7; // Support tank cannon tip Y position
+      
       window.gameCore.bullets.addSupportBullet({
-        worldX: this.supportTank.worldX,
-        worldY: this.supportTank.worldY - 15,
-        x: this.supportTank.x,
-        y: this.supportTank.y - 15,
+        worldX: gunCenterX,
+        worldY: gunTipY,
+        x: this.supportTank.x + 18, // Screen position (will be updated)
+        y: this.supportTank.y - 7, // Screen position (will be updated)
         dx: 0,
         dy: -CONFIG.bullets.speed
       });
