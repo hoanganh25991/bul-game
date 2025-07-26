@@ -26,6 +26,15 @@ Một trò chơi bắn xe tăng đơn giản trên trình duyệt. Di chuyển x
 - Nếu trình duyệt chặn tự động phát nhạc, hãy click vào bất kỳ đâu trên trang sau khi bắt đầu để bật nhạc.
 - Chơi tốt nhất trên các trình duyệt hiện đại (Chrome, Firefox, Edge, Safari).
 
+## Game
+
+/bul-game/
+├── tank.html          # Clean HTML with external CSS
+├── styles.css         # All game styles (NEW)
+├── game.js           # Game logic
+├── config.js         # Configuration
+└── [other assets...]
+
 ---
 
 Tác giả: Bul
