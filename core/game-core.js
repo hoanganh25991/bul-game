@@ -369,6 +369,28 @@ export class GameCore {
           this.inputManager.keys['Enter'] || this.inputManager.keys[' ']) {
         this.restartGame();
       }
+    } else {
+      // Debug keys during gameplay (only in development)
+      if (this.inputManager.keys['k'] || this.inputManager.keys['K']) {
+        // Kill tank for testing game over
+        this.tank.hp = 0;
+        this.inputManager.keys['k'] = false;
+        this.inputManager.keys['K'] = false;
+      }
+      if (this.inputManager.keys['w'] || this.inputManager.keys['W']) {
+        // Win game for testing victory
+        this.victorySystem.enemiesKilled = this.victorySystem.targetKills;
+        this.inputManager.keys['w'] = false;
+        this.inputManager.keys['W'] = false;
+      }
+      if (this.inputManager.keys['d'] || this.inputManager.keys['D']) {
+        // Damage tank for testing fuel system
+        this.tank.takeDamage(2);
+        this.tank.supportTank.hp = Math.max(0, this.tank.supportTank.hp - 1);
+        console.log('Debug: Damaged tanks - Main HP:', this.tank.hp, 'Support HP:', this.tank.supportTank.hp);
+        this.inputManager.keys['d'] = false;
+        this.inputManager.keys['D'] = false;
+      }
     }
   }
 

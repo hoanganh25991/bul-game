@@ -260,30 +260,50 @@ export class Weapons {
 
   // Weapon usage functions
   useFuel() {
+    console.log('useFuel() called');
+    console.log('fuelSystem.isReady:', this.fuelSystem.isReady);
+    console.log('window.gameCore?.tank exists:', !!window.gameCore?.tank);
+    
     if (this.fuelSystem.isReady && window.gameCore?.tank) {
       let fuelUsed = false;
       const tank = window.gameCore.tank;
       
+      console.log('Tank HP:', tank.hp, '/', tank.maxHp);
+      console.log('Support Tank HP:', tank.supportTank.hp, '/', tank.supportTank.maxHp);
+      
       // Priority: main tank first
       if (tank.hp < tank.maxHp) {
+        const oldHp = tank.hp;
         tank.heal(CONFIG.fuel.healAmount);
+        console.log('Healed main tank from', oldHp, 'to', tank.hp);
         window.gameCore.showFuelMessage("Bơm máu xe tăng chính +2 ❤️");
         fuelUsed = true;
       }
       // If main tank is full, heal support tank
       else if (tank.supportTank.hp > 0 && tank.supportTank.hp < tank.supportTank.maxHp) {
+        const oldHp = tank.supportTank.hp;
         tank.supportTankHeal(CONFIG.fuel.healAmount);
+        console.log('Healed support tank from', oldHp, 'to', tank.supportTank.hp);
         window.gameCore.showFuelMessage("Bơm máu xe tăng nhỏ +2 💙");
         fuelUsed = true;
+      } else {
+        console.log('No healing needed - both tanks at full HP');
+        window.gameCore.showFuelMessage("Cả hai xe tăng đều đã đầy máu! 💚");
       }
       
       // If fuel was used, start cooldown
       if (fuelUsed) {
         this.fuelSystem.isReady = false;
         this.fuelSystem.currentCooldown = this.fuelSystem.cooldownTime;
+        console.log('Fuel cooldown started:', this.fuelSystem.cooldownTime, 'ms');
       }
       
       this.updateFuelButton();
+    } else {
+      console.log('Fuel not ready or tank not available');
+      if (!this.fuelSystem.isReady) {
+        console.log('Fuel cooldown remaining:', this.fuelSystem.currentCooldown, 'ms');
+      }
     }
   }
 
