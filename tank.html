@@ -43,6 +43,9 @@
       width: 100vw;
       height: 100vh;
       display: block;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
     }
     
     /* Joystick - góc trái */
@@ -538,7 +541,11 @@
 </head>
 <body>
   <div class="game-container">
-    <button id="startBtn" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2em;padding:0.8em 2em;z-index:20;border:none;background:#4caf50;color:#fff;border-radius:15px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);">🎮 Bắt đầu</button>
+    <button id="startBtn" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2em;padding:0.8em 2em;z-index:1000;border:none;background:#4caf50;color:#fff;border-radius:15px;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.3);pointer-events:auto;">🎮 Bắt đầu</button>
+    <div id="instructions" style="position:absolute;top:60%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center;z-index:999;font-size:1.2em;">
+      <p>Nhấn nút "Bắt đầu" hoặc phím Enter/Space để chơi</p>
+      <p style="font-size:0.8em;opacity:0.7;">Nếu nút không hoạt động, hãy click bất kỳ đâu trên màn hình</p>
+    </div>
     <canvas id="gameCanvas" style="display:none;"></canvas>
     
     <!-- Joystick - góc trái -->
@@ -568,42 +575,122 @@
   </div>
   
   <audio id="bgm" src="my-love-don-t-let-love-fade.mp3" loop></audio>
+  <script type="module" src="game.js"></script>
   <script>
-
-    // Đăng ký service worker cho PWA
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('sw.js').then(function(reg) {
-          // Service worker registered
-        }, function(err) {
-          // Registration failed
-        });
-      });
+    // Legacy support for non-module browsers
+    if (!window.gameModule) {
+      console.warn('Module not supported, loading fallback...');
+      // You could load a non-module version here if needed
     }
-
-    const startBtn = document.getElementById('startBtn');
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const bgm = document.getElementById('bgm');
-    const joystickContainer = document.getElementById('joystickContainer');
-    const joystickBase = document.getElementById('joystickBase');
-    const joystickHandle = document.getElementById('joystickHandle');
-    const shootControls = document.getElementById('shootControls');
-    const fuelBtn = document.getElementById('fuelBtn');
-    const electricWaveBtn = document.getElementById('electricWaveBtn');
-    const missileBtn = document.getElementById('missileBtn');
-    const bulletTimeBtn = document.getElementById('bulletTimeBtn');
+  </script>
+    let baseWidth = 1920;
+    let baseHeight = 1080;
     
-    // Thiết lập canvas fullscreen
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const displayWidth = window.innerWidth;
+      const displayHeight = window.innerHeight;
+      
+      // Tính toán scale factor dựa trên kích thước màn hình
+      const scaleX = displayWidth / baseWidth;
+      const scaleY = displayHeight / baseHeight;
+      scaleFactor = Math.min(scaleX, scaleY, 2); // Giới hạn scale tối đa là 2x
+      
+      // Đặt kích thước canvas theo pixel thực tế
+      canvas.width = displayWidth * devicePixelRatio;
+      canvas.height = displayHeight * devicePixelRatio;
+      
+      // Đặt kích thước hiển thị
+      canvas.style.width = displayWidth + 'px';
+      canvas.style.height = displayHeight + 'px';
+      
+      // Scale context để phù hợp với device pixel ratio
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      
+      // Cập nhật kích thước controls theo scale
+      updateControlsScale();
+    }
+    
+    // Hàm helper để tính toán font size theo scale
+    function getScaledFont(baseSize, fontFamily = 'Arial', weight = 'normal') {
+      const scale = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+      const scaledSize = Math.max(baseSize * scale, 12); // Kích thước tối thiểu 12px
+      return `${weight} ${scaledSize}px ${fontFamily}`;
+    }
+    
+    // Hàm helper để tính toán kích thước theo scale
+    function getScaledSize(baseSize) {
+      const scale = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+      return Math.max(baseSize * scale, baseSize * 0.5); // Tối thiểu 50% kích thước gốc
+    }
+    
+    // Hàm cập nhật kích thước controls theo scale
+    function updateControlsScale() {
+      const isMobile = window.innerWidth <= 768;
+      const baseSize = isMobile ? 70 : 80;
+      const scaledSize = Math.max(baseSize * scaleFactor, 50); // Kích thước tối thiểu 50px
+      
+      // Cập nhật joystick
+      if (joystickContainer) {
+        const joystickSize = Math.max(130 * scaleFactor, 100);
+        joystickContainer.style.width = joystickSize + 'px';
+        joystickContainer.style.height = joystickSize + 'px';
+        
+        const handleSize = Math.max(50 * scaleFactor, 35);
+        const joystickHandle = joystickContainer.querySelector('.joystick-handle');
+        if (joystickHandle) {
+          joystickHandle.style.width = handleSize + 'px';
+          joystickHandle.style.height = handleSize + 'px';
+        }
+      }
+      
+      // Cập nhật các nút control
+      const buttons = [shootButton, fuelBtn, electricWaveBtn, missileBtn, bulletTimeBtn];
+      buttons.forEach(btn => {
+        if (btn) {
+          btn.style.width = scaledSize + 'px';
+          btn.style.height = scaledSize + 'px';
+          btn.style.fontSize = Math.max(24 * scaleFactor, 18) + 'px';
+        }
+      });
+      
+      // Cập nhật tốc độ tank theo scale
+      if (typeof tank !== 'undefined') {
+        tank.speed = getScaledSize(3);
+      }
+    }
+    
+    // Hệ thống tối ưu performance
+    let lastFrameTime = performance.now();
+    let frameCount = 0;
+    let avgFPS = 60;
+    
+    function optimizePerformance() {
+      const currentTime = performance.now();
+      const deltaTime = currentTime - lastFrameTime;
+      lastFrameTime = currentTime;
+      
+      // Tính FPS trung bình
+      const currentFPS = 1000 / deltaTime;
+      avgFPS = avgFPS * 0.9 + currentFPS * 0.1;
+      
+      // Điều chỉnh scaleFactor nếu FPS quá thấp
+      if (avgFPS < 30 && scaleFactor > 0.5) {
+        scaleFactor *= 0.95;
+        updateControlsScale();
+      } else if (avgFPS > 55 && scaleFactor < 2) {
+        scaleFactor *= 1.01;
+        updateControlsScale();
+      }
     }
     
     // Gọi resize khi tải trang và khi thay đổi kích thước
     window.addEventListener('resize', function() {
-      if (gameStarted) {
-        resizeCanvas();
+      resizeCanvas();
+      if (gameStarted && typeof tank !== 'undefined') {
+        // Điều chỉnh vị trí tank để giữ tỷ lệ
+        tank.x = Math.min(tank.x, window.innerWidth - 60);
+        tank.y = Math.min(tank.y, window.innerHeight - 60);
       }
     });
     resizeCanvas();
@@ -623,9 +710,15 @@
       cooldownTime: 5000, // 5 giây cooldown
       currentCooldown: 0,
       waves: [], // Mảng chứa các sóng điện đang hoạt động
-      waveRadius: 300, // Bán kính tối đa của sóng
+      get waveRadius() { 
+        const scale = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        return Math.max(300 * scale, 150); 
+      }, // Bán kính tối đa của sóng
       waveDamage: 5, // Sát thương của sóng điện
-      waveSpeed: 8 // Tốc độ lan truyền sóng
+      get waveSpeed() { 
+        const scale = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        return Math.max(8 * scale, 4); 
+      } // Tốc độ lan truyền sóng
     };
 
     // Hệ thống tuyệt chiêu tên lửa
@@ -634,17 +727,29 @@
       cooldownTime:  1000, // 3 giây cooldown
       currentCooldown: 0,
       missiles: [], // Mảng chứa các tên lửa đang bay
-      missileSpeed: 6, // Tốc độ tên lửa
+      get missileSpeed() { 
+        const scale = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        return Math.max(6 * scale, 3); 
+      }, // Tốc độ tên lửa
       missileDamage: 10, // Sát thương của tên lửa
-      explosionRadius: 80, // Bán kính nổ
-      homingRange: 200 // Phạm vi tự động tìm mục tiêu
+      get explosionRadius() { 
+        const scale = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        return Math.max(80 * scale, 40); 
+      }, // Bán kính nổ
+      get homingRange() { 
+        const scale = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        return Math.max(200 * scale, 100); 
+      } // Phạm vi tự động tìm mục tiêu
     };
 
     // Hệ thống bản đồ vô tận
     const worldSystem = {
       offsetX: 0,
       offsetY: 0,
-      tileSize: 40,
+      get tileSize() { 
+        const scale = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        return Math.max(40 * scale, 20); 
+      },
       terrain: [],
       decorations: []
     };
@@ -786,13 +891,13 @@
     }
 
     const tank = {
-        x: 400, // Vị trí trên màn hình
-        y: 300, // Vị trí trên màn hình
-        speed: 3,
+        x: window.innerWidth/2 - 30, // Vị trí trên màn hình
+        y: window.innerHeight/2 - 30, // Vị trí trên màn hình
+        speed: 3, // Sẽ được cập nhật trong updateControlsScale()
         hp: 10,
         maxHp: 10,
-        worldX: 400, // Vị trí thực trong thế giới
-        worldY: 300,
+        worldX: window.innerWidth/2 - 30, // Vị trí thực trong thế giới
+        worldY: window.innerHeight/2 - 30,
         shootCooldown: 0,
         shootInterval: 10, // Thời gian chờ giữa các lần bắn (frames)
         angle: -Math.PI / 2, // Góc xoay của xe tăng (mặc định hướng lên)
@@ -817,6 +922,9 @@
         shootInterval: 45 // Bắn mỗi 45 frames (chậm hơn xe tăng chính)
     };
 
+    // Cập nhật scale cho tank sau khi khởi tạo
+    updateControlsScale();
+
     let bullets = [];
     const bulletSpeed = 10;
 
@@ -836,7 +944,8 @@
       } else {
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(bullet.x, bullet.y, 5, 0, Math.PI * 2);
+        const bulletRadius = getScaledSize(5);
+        ctx.arc(bullet.x, bullet.y, bulletRadius, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -908,13 +1017,18 @@
 
     function drawExplosion(x, y) {
       ctx.save();
+      const explosionCenterX = getScaledSize(30);
+      const explosionCenterY = getScaledSize(35);
+      const outerRadius = getScaledSize(25);
+      const innerRadius = getScaledSize(12);
+      
       ctx.beginPath();
-      ctx.arc(x + 30, y + 35, 25, 0, Math.PI * 2);
+      ctx.arc(x + explosionCenterX, y + explosionCenterY, outerRadius, 0, Math.PI * 2);
       ctx.fillStyle = 'orange';
       ctx.globalAlpha = 0.7;
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(x + 30, y + 35, 12, 0, Math.PI * 2);
+      ctx.arc(x + explosionCenterX, y + explosionCenterY, innerRadius, 0, Math.PI * 2);
       ctx.fillStyle = 'yellow';
       ctx.globalAlpha = 0.9;
       ctx.fill();
@@ -1169,36 +1283,49 @@ function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = fa
   }
   // Vẽ cột máu nếu có hp và maxHp (ưu tiên vẽ trước để không bị che)
   if (typeof hp === 'number' && typeof maxHp === 'number') {
+    const healthBarWidth = getScaledSize(50);
+    const healthBarHeight = getScaledSize(7);
+    const healthBarOffsetX = getScaledSize(5);
+    const healthBarOffsetY = getScaledSize(-15);
+    
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x + 5, y - 15, 50, 7);
+    ctx.lineWidth = getScaledSize(2);
+    ctx.strokeRect(x + healthBarOffsetX, y + healthBarOffsetY, healthBarWidth, healthBarHeight);
     // Thanh máu nền
     ctx.fillStyle = '#f44336';
-    ctx.fillRect(x + 5, y - 15, 50, 7);
+    ctx.fillRect(x + healthBarOffsetX, y + healthBarOffsetY, healthBarWidth, healthBarHeight);
     // Đổi màu health bar theo phần trăm máu
     let percent = Math.max(0, Math.min(1, hp / maxHp));
     if (percent > 0.6) ctx.fillStyle = '#76ff03'; // xanh
     else if (percent > 0.3) ctx.fillStyle = '#ffeb3b'; // vàng
     else ctx.fillStyle = '#f44336'; // đỏ
-    ctx.fillRect(x + 5, y - 15, 50 * percent, 7);
+    ctx.fillRect(x + healthBarOffsetX, y + healthBarOffsetY, healthBarWidth * percent, healthBarHeight);
   }
   
   // Vẽ xe tăng với nòng pháo xoay được (chỉ cho xe tăng người chơi)
   if (!reverse && turretAngle !== null) {
     // Vẽ xe tăng với thân xe có thể xoay
+    const tankCenterX = getScaledSize(30);
+    const tankCenterY = getScaledSize(35);
+    const tankWidth = getScaledSize(60);
+    const tankHeight = getScaledSize(30);
+    const turretSize = getScaledSize(30);
+    const wheelRadius = getScaledSize(8);
+    const wheelSpacing = getScaledSize(15);
+    
     ctx.save();
-    ctx.translate(x + 30, y + 35); // Di chuyển đến tâm xe tăng
+    ctx.translate(x + tankCenterX, y + tankCenterY); // Di chuyển đến tâm xe tăng
     ctx.rotate(angle + Math.PI/2); // Xoay thân xe theo hướng di chuyển
     
     // Thân xe (vẽ từ tâm)
     ctx.fillStyle = color;
-    ctx.fillRect(-30, -15, 60, 30);
+    ctx.fillRect(-tankWidth/2, -tankHeight/2, tankWidth, tankHeight);
     
     // Bánh xe (vẽ từ tâm)
     ctx.fillStyle = '#222';
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-      ctx.arc(-15 + i * 15, 15, 8, 0, Math.PI * 2);
+      ctx.arc(-wheelSpacing + i * wheelSpacing, tankHeight/2, wheelRadius, 0, Math.PI * 2);
       ctx.fill();
     }
     
@@ -1206,34 +1333,44 @@ function drawTank(x, y, color = '#4caf50', turretColor = '#388e3c', reverse = fa
     
     // Tháp pháo (luôn ở tâm xe tăng, không xoay theo thân xe)
     ctx.fillStyle = turretColor;
-    ctx.fillRect(x + 15, y + 20, 30, 30);
+    ctx.fillRect(x + getScaledSize(15), y + getScaledSize(20), turretSize, turretSize);
     
     // Vẽ nòng pháo xoay được
     ctx.save();
-    ctx.translate(x + 30, y + 35); // Di chuyển đến tâm tháp pháo
+    ctx.translate(x + tankCenterX, y + tankCenterY); // Di chuyển đến tâm tháp pháo
     ctx.rotate(turretAngle); // Xoay theo góc nhắm
     
     // Vẽ nòng pháo
     ctx.fillStyle = '#222';
-    ctx.fillRect(-3, -20, 6, 20); // Nòng pháo từ tâm tháp pháo
+    const cannonWidth = getScaledSize(6);
+    const cannonLength = getScaledSize(20);
+    ctx.fillRect(-cannonWidth/2, -cannonLength, cannonWidth, cannonLength); // Nòng pháo từ tâm tháp pháo
     
     ctx.restore();
   } else {
     // Vẽ xe tăng enemy theo cách cũ
+    const enemyTankWidth = getScaledSize(60);
+    const enemyTankHeight = getScaledSize(30);
+    const enemyTurretSize = getScaledSize(30);
+    const enemyCannonWidth = getScaledSize(6);
+    const enemyCannonLength = getScaledSize(20);
+    const enemyWheelRadius = getScaledSize(8);
+    const enemyWheelSpacing = getScaledSize(15);
+    
     // Thân xe
     ctx.fillStyle = color;
-    ctx.fillRect(x, y + 20, 60, 30);
+    ctx.fillRect(x, y + getScaledSize(20), enemyTankWidth, enemyTankHeight);
     // Tháp pháo
     ctx.fillStyle = turretColor;
-    ctx.fillRect(x + 15, y, 30, 30);
+    ctx.fillRect(x + getScaledSize(15), y, enemyTurretSize, enemyTurretSize);
     // Nòng pháo
     ctx.fillStyle = '#222';
-    ctx.fillRect(x + 27, y - 20, 6, 20);
+    ctx.fillRect(x + getScaledSize(27), y - enemyCannonLength, enemyCannonWidth, enemyCannonLength);
     // Bánh xe
     ctx.fillStyle = '#222';
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-      ctx.arc(x + 15 + i * 15, y + 50, 8, 0, Math.PI * 2);
+      ctx.arc(x + getScaledSize(15) + i * enemyWheelSpacing, y + getScaledSize(50), enemyWheelRadius, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -1288,7 +1425,7 @@ function drawSupportTank(x, y, color = '#2196f3', turretColor = '#1976d2', hp, m
 let enemies = [];
 const enemySpeed = 2;
 const enemySpawnInterval = 120; // frames - giảm tốc độ spawn 10 lần
-let frameCount = 0;
+// frameCount đã được khai báo ở trên
 let enemyIdCounter = 0; // Đếm ID duy nhất cho mỗi kẻ địch
 
 function spawnEnemy() {
@@ -1417,11 +1554,11 @@ function update() {
       if (ex.time > 30) window.tankExplosions.splice(i, 1);
     }
     ctx.save();
-    ctx.font = 'bold 2.2em Arial';
+    ctx.font = getScaledFont(35, 'Arial', 'bold');
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     ctx.shadowColor = '#000';
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = getScaledSize(8);
     ctx.fillText('Bạn đã thua trò chơi', canvas.width / 2, canvas.height / 2);
     ctx.restore();
     // Hiện nút chơi lại
@@ -2158,83 +2295,86 @@ function update() {
 
   // Hiển thị thông tin game
   ctx.save();
-  ctx.font = 'bold 1.2em Arial';
+  ctx.font = getScaledFont(19, 'Arial', 'bold');
   ctx.fillStyle = '#fff';
   ctx.shadowColor = '#000';
-  ctx.shadowBlur = 3;
-  ctx.fillText(`HP: ${tank.hp}/${tank.maxHp}`, 20, 20);
-  ctx.fillText(`Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, 20, 40);
+  ctx.shadowBlur = getScaledSize(3);
+  const uiMargin = getScaledSize(20);
+  const uiLineHeight = getScaledSize(20);
+  
+  ctx.fillText(`HP: ${tank.hp}/${tank.maxHp}`, uiMargin, uiLineHeight);
+  ctx.fillText(`Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, uiMargin, uiLineHeight * 2);
   
   // Hiển thị cooldown bình nhiên liệu
   if (!fuelSystem.isReady) {
     let cooldownSeconds = Math.ceil(fuelSystem.currentCooldown / 1000);
     ctx.fillStyle = '#4caf50';
-    ctx.fillText(`⛽ Nhiên liệu: ${cooldownSeconds}s`, 20, 60);
+    ctx.fillText(`⛽ Nhiên liệu: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 3);
   } else {
     ctx.fillStyle = '#4caf50';
-    ctx.fillText(`⛽ Nhiên liệu: Sẵn sàng`, 20, 60);
+    ctx.fillText(`⛽ Nhiên liệu: Sẵn sàng`, uiMargin, uiLineHeight * 3);
   }
   
   // Hiển thị thông báo fuel
   if (fuelMessage.time > 0) {
     ctx.fillStyle = '#4caf50';
-    ctx.fillText(fuelMessage.text, 20, 80);
+    ctx.fillText(fuelMessage.text, uiMargin, uiLineHeight * 4);
     fuelMessage.time--;
   }
   
   // Hiển thị thông báo bắn laser
   if (bulletTimeMessage.time > 0) {
     ctx.fillStyle = '#2196f3';
-    ctx.fillText(bulletTimeMessage.text, 20, 160);
+    ctx.fillText(bulletTimeMessage.text, uiMargin, uiLineHeight * 8);
     bulletTimeMessage.time--;
   }
   
   // Hiển thị thông báo chung
   if (generalMessage.time > 0) {
     ctx.fillStyle = '#ffeb3b';
-    ctx.fillText(generalMessage.text, 20, 180);
+    ctx.fillText(generalMessage.text, uiMargin, uiLineHeight * 9);
     generalMessage.time--;
   }
   
   // Hiển thị trạng thái tự động nhắm và bắn tự động
   ctx.fillStyle = tank.autoAim ? '#4caf50' : '#f44336';
-  ctx.fillText(`🎯 Tự động nhắm: ${tank.autoAim ? 'BẬT' : 'TẮT'} (A)`, 20, 200);
+  ctx.fillText(`🎯 Tự động nhắm: ${tank.autoAim ? 'BẬT' : 'TẮT'} (A)`, uiMargin, uiLineHeight * 10);
   
   ctx.fillStyle = tank.autoShoot ? '#4caf50' : '#f44336';
-  ctx.fillText(`🔫 Bắn tự động: ${tank.autoShoot ? 'BẬT' : 'TẮT'} (Z)`, 20, 220);
+  ctx.fillText(`🔫 Bắn tự động: ${tank.autoShoot ? 'BẬT' : 'TẮT'} (Z)`, uiMargin, uiLineHeight * 11);
   
   // Hiển thị cooldown sóng điện
   if (!electricWaveSystem.isReady) {
     let cooldownSeconds = Math.ceil(electricWaveSystem.currentCooldown / 1000);
     ctx.fillStyle = '#8a2be2';
-    ctx.fillText(`⚡ Sóng điện: ${cooldownSeconds}s`, 20, 100);
+    ctx.fillText(`⚡ Sóng điện: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 5);
   } else {
     ctx.fillStyle = '#8a2be2';
-    ctx.fillText(`⚡ Sóng điện: Sẵn sàng`, 20, 100);
+    ctx.fillText(`⚡ Sóng điện: Sẵn sàng`, uiMargin, uiLineHeight * 5);
   }
   
   // Hiển thị cooldown tên lửa
   if (!missileSystem.isReady) {
     let cooldownSeconds = Math.ceil(missileSystem.currentCooldown / 1000);
     ctx.fillStyle = '#ff5722';
-    ctx.fillText(`🚀 Tên lửa: ${cooldownSeconds}s`, 20, 120);
+    ctx.fillText(`🚀 Tên lửa: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 6);
   } else {
     ctx.fillStyle = '#ff5722';
-    ctx.fillText(`🚀 Tên lửa: Sẵn sàng`, 20, 120);
+    ctx.fillText(`🚀 Tên lửa: Sẵn sàng`, uiMargin, uiLineHeight * 6);
   }
   
   // Hiển thị trạng thái Bắn laser
   if (bulletTimeSystem.isActive) {
     let durationSeconds = Math.ceil(bulletTimeSystem.currentDuration / 1000);
     ctx.fillStyle = '#2196f3';
-    ctx.fillText(`🔴 Bắn laser: ${durationSeconds}s`, 20, 140);
+    ctx.fillText(`🔴 Bắn laser: ${durationSeconds}s`, uiMargin, uiLineHeight * 7);
   } else if (!bulletTimeSystem.isReady) {
     let cooldownSeconds = Math.ceil(bulletTimeSystem.currentCooldown / 1000);
     ctx.fillStyle = '#2196f3';
-    ctx.fillText(`🔴 Bắn laser: ${cooldownSeconds}s`, 20, 140);
+    ctx.fillText(`🔴 Bắn laser: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 7);
   } else {
     ctx.fillStyle = '#2196f3';
-    ctx.fillText(`🔴 Bắn laser: Sẵn sàng`, 20, 140);
+    ctx.fillText(`🔴 Bắn laser: Sẵn sàng`, uiMargin, uiLineHeight * 7);
   }
   ctx.restore();
 
@@ -2244,7 +2384,37 @@ function update() {
   // Hệ thống bình nhiên liệu - thời gian chờ 3 giây
 }
 
-// Thêm nút chơi lại
+// Hiển thị nút chơi lại khi chiến thắng
+function showVictoryButtons() {
+  // Chỉ hiển thị nút chơi lại
+  let replayBtn = document.getElementById('replayBtn');
+  if (!replayBtn) {
+    replayBtn = document.createElement('button');
+    replayBtn.id = 'replayBtn';
+    replayBtn.innerText = 'Chơi lại';
+    replayBtn.style.position = 'fixed';
+    replayBtn.style.top = 'calc(50% + 80px)';
+    replayBtn.style.left = '50%';
+    replayBtn.style.transform = 'translate(-50%,0)';
+    replayBtn.style.fontSize = Math.max(32 * scaleFactor, 20) + 'px';
+    replayBtn.style.padding = Math.max(8 * scaleFactor, 6) + 'px ' + Math.max(32 * scaleFactor, 20) + 'px';
+    replayBtn.style.zIndex = '100';
+    replayBtn.style.background = '#2196f3';
+    replayBtn.style.color = '#fff';
+    replayBtn.style.border = 'none';
+    replayBtn.style.borderRadius = '15px';
+    replayBtn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
+    replayBtn.style.cursor = 'pointer';
+    document.body.appendChild(replayBtn);
+    replayBtn.addEventListener('click', function() {
+      // Reset trạng thái game và bật lại nhạc
+      resetGame();
+      replayBtn.remove();
+    });
+  }
+  replayBtn.style.display = 'block';
+}
+
 function showReplayButton() {
   let btn = document.getElementById('replayBtn');
   if (!btn) {
@@ -2255,8 +2425,8 @@ function showReplayButton() {
     btn.style.top = 'calc(50% + 60px)';
     btn.style.left = '50%';
     btn.style.transform = 'translate(-50%,0)';
-    btn.style.fontSize = '2em';
-    btn.style.padding = '0.5em 2em';
+    btn.style.fontSize = Math.max(32 * scaleFactor, 20) + 'px';
+    btn.style.padding = Math.max(8 * scaleFactor, 6) + 'px ' + Math.max(32 * scaleFactor, 20) + 'px';
     btn.style.zIndex = '100';
     btn.style.background = '#2196f3';
     btn.style.color = '#fff';
@@ -2276,22 +2446,29 @@ function showReplayButton() {
 
 // Hiển thị màn hình chiến thắng
 function showVictoryScreen() {
+  // Tắt nhạc nền khi chiến thắng
+  bgm.pause();
+  
   // Hiệu ứng pháo hoa (có thể thêm sau)
   ctx.save();
-  ctx.font = 'bold 3em Arial';
+  ctx.font = getScaledFont(48, 'Arial', 'bold');
   ctx.fillStyle = '#FFD700';
   ctx.textAlign = 'center';
   ctx.shadowColor = '#000';
-  ctx.shadowBlur = 10;
-  ctx.fillText('🎉 CHIẾN THẮNG! 🎉', canvas.width / 2, canvas.height / 2 - 50);
+  ctx.shadowBlur = getScaledSize(10);
+  ctx.fillText('🎉 CHIẾN THẮNG! 🎉', canvas.width / 2, canvas.height / 2 - getScaledSize(80));
   
-  ctx.font = 'bold 1.5em Arial';
+  ctx.font = getScaledFont(24, 'Arial', 'bold');
   ctx.fillStyle = '#fff';
-  ctx.fillText(`Đã tiêu diệt ${victorySystem.targetKills} quân địch!`, canvas.width / 2, canvas.height / 2 + 20);
+  ctx.fillText(`Đã tiêu diệt ${victorySystem.targetKills} quân địch!`, canvas.width / 2, canvas.height / 2 - getScaledSize(10));
+  
+  ctx.font = getScaledFont(19, 'Arial');
+  ctx.fillStyle = '#ccc';
+  ctx.fillText('🔇 Nhạc nền đã được tắt', canvas.width / 2, canvas.height / 2 + getScaledSize(25));
   ctx.restore();
   
   // Hiện nút chơi lại
-  showReplayButton();
+  showVictoryButtons();
 }
 
 function resetGame() {
@@ -2685,53 +2862,119 @@ function resetGame() {
 
     function gameLoop() {
       if (gameStarted) {
+        optimizePerformance();
         update();
         requestAnimationFrame(gameLoop);
       }
     }
 
-startBtn.addEventListener('click', function() {
-      startBtn.style.display = 'none';
-      canvas.style.display = 'block';
+// Đảm bảo event listener được thêm sau khi DOM load
+if (startBtn) {
+  // Thêm nhiều event listener để debug
+  startBtn.addEventListener('mousedown', function() {
+    console.log('Start button mousedown');
+  });
+  
+  startBtn.addEventListener('mouseup', function() {
+    console.log('Start button mouseup');
+  });
+  
+  startBtn.addEventListener('touchstart', function() {
+    console.log('Start button touchstart');
+  });
+  
+  startBtn.addEventListener('click', function(e) {
+    console.log('Start button clicked', e); // Debug log
+    e.preventDefault();
+    e.stopPropagation();
+    
+    startBtn.style.display = 'none';
+    
+    // Ẩn thông báo hướng dẫn
+    const instructions = document.getElementById('instructions');
+    if (instructions) {
+      instructions.style.display = 'none';
+    }
+    
+    canvas.style.display = 'block';
+    
+    // Kiểm tra an toàn trước khi hiển thị controls
+    if (joystickContainer) {
       joystickContainer.style.display = 'block';
+    }
+    if (shootControls) {
       shootControls.style.display = 'block';
-      gameStarted = true;
-      
-      // Đảm bảo canvas fullscreen
-      resizeCanvas();
-      
-      // Khởi tạo hệ thống thế giới
-      initWorldSystem();
-      
-      // Thiết lập điều khiển joystick
-      setupControls();
-      
-      // Khởi tạo trạng thái nút bình nhiên liệu
-      updateFuelButton();
-      
-      // Khởi tạo trạng thái nút sóng điện
-      updateElectricWaveButton();
-      
-      // Khởi tạo trạng thái nút tên lửa
-      updateMissileButton();
-      
-      // Khởi tạo trạng thái nút Bắn laser
-      updateBulletTimeButton();
-      
-      bgm.currentTime = 0;
-      // Try to play audio, fallback if blocked
-      bgm.play().then(() => {
-        // success
-      }).catch(() => {
-        // If failed, show a message and try again on next user gesture
-        alert('Click anywhere to enable game music!');
-        document.body.addEventListener('click', function tryPlay() {
-          bgm.play();
-          document.body.removeEventListener('click', tryPlay);
-        });
+    }
+    
+    gameStarted = true;
+    
+    // Đảm bảo canvas fullscreen
+    resizeCanvas();
+    
+    // Khởi tạo hệ thống thế giới
+    initWorldSystem();
+    
+    // Thiết lập điều khiển joystick
+    setupControls();
+    
+    // Khởi tạo trạng thái nút bình nhiên liệu
+    updateFuelButton();
+    
+    // Khởi tạo trạng thái nút sóng điện
+    updateElectricWaveButton();
+    
+    // Khởi tạo trạng thái nút tên lửa
+    updateMissileButton();
+    
+    // Khởi tạo trạng thái nút Bắn laser
+    updateBulletTimeButton();
+    
+    bgm.currentTime = 0;
+    // Try to play audio, fallback if blocked
+    bgm.play().then(() => {
+      // success
+    }).catch(() => {
+      // If failed, show a message and try again on next user gesture
+      alert('Click anywhere to enable game music!');
+      document.body.addEventListener('click', function tryPlay() {
+        bgm.play();
+        document.body.removeEventListener('click', tryPlay);
       });
-      gameLoop();
     });
-  </script>
+    gameLoop();
+  });
+} else {
+  console.error('Start button not found!');
+}
+
+// Thêm keyboard shortcut để start game (phím Enter hoặc Space)
+document.addEventListener('keydown', function(e) {
+  if ((e.key === 'Enter' || e.key === ' ') && !gameStarted) {
+    console.log('Starting game via keyboard shortcut');
+    if (startBtn && startBtn.style.display !== 'none') {
+      startBtn.click();
+    }
+  }
+});
+
+// Thêm fallback: click anywhere để start nếu nút không hoạt động
+let fallbackClickAdded = false;
+setTimeout(function() {
+  if (!gameStarted && !fallbackClickAdded) {
+    fallbackClickAdded = true;
+    console.log('Adding fallback click handler');
+    document.body.addEventListener('click', function(e) {
+      if (!gameStarted && e.target !== startBtn) {
+        console.log('Starting game via fallback click');
+        if (startBtn) {
+          startBtn.click();
+        }
+      }
+    });
+  }
+}, 3000); // Sau 3 giây nếu game chưa start
+
+    }); // Kết thúc DOMContentLoaded event listener
+</script>
 </body>
 </html>

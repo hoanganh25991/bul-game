@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Bắn Xe Tăng</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2196f3">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #222;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    .game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    canvas {
+      background: #444;
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    
+    /* Joystick - góc trái */
+    .joystick-container {
+      position: fixed;
+      bottom: 30px;
+      left: 30px;
+      display: none;
+      z-index: 10;
+      width: 150px;
+      height: 150px;
+      touch-action: none;
+    }
+    
+    .joystick-base {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(5px);
+    }
+    
+    .joystick-handle {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.5);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
+    }
+    
+    /* Nút bắn và bình nhiên liệu - góc phải */
+    .shoot-controls {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      display: none;
+      z-index: 10;
+      flex-direction: row;
+      gap: 20px;
+      align-items: center;
+    }
+    
+    .shoot-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(255, 235, 59, 0.3);
+      border: 3px solid #ffeb3b;
+      color: #ffeb3b;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+    }
+    
+    .shoot-btn:hover {
+      background: rgba(255, 235, 59, 0.5);
+      transform: scale(1.1);
+    }
+    
+    .shoot-btn:active {
+      background: rgba(255, 235, 59, 0.7);
+      transform: scale(0.9);
+    }
+    
+    /* Nút bình nhiên liệu */
+    .fuel-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(76, 175, 80, 0.3);
+      border: 3px solid #4caf50;
+      color: #4caf50;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+      margin-bottom: 10px;
+    }
+    
+    .fuel-btn:hover {
+      background: rgba(76, 175, 80, 0.5);
+      transform: scale(1.1);
+    }
+    
+    .fuel-btn:active {
+      background: rgba(76, 175, 80, 0.7);
+      transform: scale(0.9);
+    }
+    
+    .fuel-btn.disabled {
+      background: rgba(128, 128, 128, 0.3);
+      border-color: #808080;
+      color: #808080;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .fuel-btn.disabled:hover {
+      transform: none;
+      background: rgba(128, 128, 128, 0.3);
+    }
+    
+    /* Nút tuyệt chiêu sóng điện */
+    .electric-wave-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(138, 43, 226, 0.3);
+      border: 3px solid #8a2be2;
+      color: #8a2be2;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Nút tuyệt chiêu tên lửa */
+    .missile-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(255, 87, 34, 0.3);
+      border: 3px solid #ff5722;
+      color: #ff5722;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Nút kỹ năng bắn laser */
+    .bullet-time-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(33, 150, 243, 0.3);
+      border: 3px solid #2196f3;
+      color: #2196f3;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.1s;
+      touch-action: manipulation;
+      backdrop-filter: blur(5px);
+      margin-bottom: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .missile-btn:hover {
+      background: rgba(255, 87, 34, 0.5);
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(255, 87, 34, 0.6);
+    }
+    
+    .missile-btn:active {
+      background: rgba(255, 87, 34, 0.7);
+      transform: scale(0.9);
+    }
+    
+    .missile-btn.disabled {
+      background: rgba(128, 128, 128, 0.3);
+      border-color: #808080;
+      color: #808080;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .missile-btn.disabled:hover {
+      transform: none;
+      background: rgba(128, 128, 128, 0.3);
+      box-shadow: none;
+    }
+    
+    .electric-wave-btn:hover {
+      background: rgba(138, 43, 226, 0.5);
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
+    }
+    
+    .electric-wave-btn:active {
+      background: rgba(138, 43, 226, 0.7);
+      transform: scale(0.9);
+    }
+    
+    .electric-wave-btn.disabled {
+      background: rgba(128, 128, 128, 0.3);
+      border-color: #808080;
+      color: #808080;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .electric-wave-btn.disabled:hover {
+      transform: none;
+      background: rgba(128, 128, 128, 0.3);
+      box-shadow: none;
+    }
+
+    .bullet-time-btn:hover {
+      background: rgba(33, 150, 243, 0.5);
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(33, 150, 243, 0.6);
+    }
+    
+    .bullet-time-btn:active {
+      background: rgba(33, 150, 243, 0.7);
+      transform: scale(0.9);
+    }
+    
+    .bullet-time-btn.disabled {
+      background: rgba(128, 128, 128, 0.3);
+      border-color: #808080;
+      color: #808080;
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    
+    .bullet-time-btn.disabled:hover {
+      transform: none;
+      background: rgba(128, 128, 128, 0.3);
+      box-shadow: none;
+    }
+
+    .bullet-time-btn.active {
+      background: rgba(33, 150, 243, 0.8);
+      box-shadow: 0 0 30px rgba(33, 150, 243, 1);
+      animation: bulletTimePulse 1s infinite;
+    }
+
+    @keyframes bulletTimePulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(33, 150, 243, 1); }
+      50% { box-shadow: 0 0 50px rgba(33, 150, 243, 0.8); }
+    }
+    
+    /* Hiệu ứng cooldown cho nút tên lửa */
+    .missile-btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: conic-gradient(transparent 0deg, rgba(255, 87, 34, 0.8) 360deg);
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .missile-btn.cooldown::after {
+      opacity: 1;
+      animation: cooldownSpin 0.1s linear;
+    }
+
+    /* Hiệu ứng cooldown cho nút sóng điện */
+    .electric-wave-btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: conic-gradient(transparent 0deg, rgba(138, 43, 226, 0.8) 360deg);
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .electric-wave-btn.cooldown::after {
+      opacity: 1;
+      animation: cooldownSpin 0.1s linear;
+    }
+
+    /* Hiệu ứng cooldown cho nút bắn laser */
+    .bullet-time-btn::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: conic-gradient(transparent 0deg, rgba(33, 150, 243, 0.8) 360deg);
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .bullet-time-btn.cooldown::after {
+      opacity: 1;
+      animation: cooldownSpin 0.1s linear;
+    }
+    
+    @keyframes cooldownSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Responsive cho màn hình nhỏ */
+    @media (max-width: 768px) {
+      .joystick-container {
+        width: 130px;
+        height: 130px;
+        bottom: 20px;
+        left: 20px;
+      }
+      
+      .joystick-handle {
+        width: 50px;
+        height: 50px;
+      }
+      
+      .shoot-controls {
+        bottom: 20px;
+        right: 20px;
+        gap: 15px;
+      }
+      
+      .shoot-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
+      
+      .fuel-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
+      
+      .electric-wave-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
+      
+      .missile-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
+      
+      .bullet-time-btn {
+        width: 70px;
+        height: 70px;
+        font-size: 28px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .joystick-container {
+        width: 120px;
+        height: 120px;
+        bottom: 15px;
+        left: 15px;
+      }
+      
+      .joystick-handle {
+        width: 45px;
+        height: 45px;
+      }
+      
+      .shoot-controls {
+        bottom: 15px;
+        right: 15px;
+        gap: 12px;
+      }
+      
+      .shoot-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
+      
+      .fuel-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
+      
+      .electric-wave-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
+      
+      .missile-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
+      
+      .bullet-time-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 24px;
+      }
+    }
+    
+    @media (max-width: 360px) {
+      .joystick-container {
+        width: 100px;
+        height: 100px;
+        bottom: 10px;
+        left: 10px;
+      }
+      
+      .joystick-handle {
+        width: 40px;
+        height: 40px;
+      }
+      
+      .shoot-controls {
+        bottom: 10px;
+        right: 10px;
+        gap: 10px;
+      }
+      
+      .shoot-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
+      
+      .fuel-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
+      
+      .electric-wave-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
+      
+      .missile-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
+      
+      .bullet-time-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <button id="startBtn" style="position: absolute; z-index: 100; padding: 20px 40px; font-size: 24px; background: #4caf50; color: white; border: none; border-radius: 10px; cursor: pointer;">
+      Bắt đầu chơi
+    </button>
+    
+    <div id="instructions" style="position: absolute; z-index: 99; color: white; text-align: center; top: 60%; left: 50%; transform: translateX(-50%); font-size: 18px; line-height: 1.6;">
+      <p>🎮 <strong>Điều khiển:</strong></p>
+      <p>🏃 Di chuyển: Phím mũi tên hoặc joystick</p>
+      <p>🔫 Bắn: Phím Space hoặc nút bắn</p>
+      <p>⛽ Bình nhiên liệu: Phím F</p>
+      <p>⚡ Sóng điện: Phím E</p>
+      <p>🚀 Tên lửa: Phím 1</p>
+      <p>🔴 Bắn laser: Phím T</p>
+      <p>🎯 Tự động nhắm: Phím A</p>
+      <p>🔫 Bắn tự động: Phím Z</p>
+    </div>
+    
+    <canvas id="gameCanvas" style="display: none;"></canvas>
+    
+    <!-- Joystick - góc trái -->
+    <div class="joystick-container" id="joystickContainer">
+      <div class="joystick-base" id="joystickBase">
+        <div class="joystick-handle" id="joystickHandle"></div>
+      </div>
+    </div>
+    
+    <!-- Nút bắn và bình nhiên liệu - góc phải -->
+    <div class="shoot-controls" id="shootControls">
+      <button class="missile-btn" id="missileBtn">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="currentColor">
+          <path d="M16 2 L20 8 L16 12 L12 8 Z"/>
+          <rect x="14" y="8" width="4" height="16" rx="2"/>
+          <path d="M12 20 L16 24 L20 20"/>
+          <circle cx="16" cy="16" r="2" fill="#ffeb3b"/>
+          <path d="M8 12 L12 14 L8 16 Z" fill="#ff9800"/>
+          <path d="M24 12 L20 14 L24 16 Z" fill="#ff9800"/>
+        </svg>
+      </button>
+      <button class="bullet-time-btn" id="bulletTimeBtn">🔴</button>
+      <button class="electric-wave-btn" id="electricWaveBtn">⚡</button>
+      <button class="fuel-btn" id="fuelBtn">⛽</button>
+      <button class="shoot-btn" id="shootBtn"><img src="bullet.png" alt="Bullet" style="width: 30px; height: 30px;"></button>
+    </div>
+  </div>
+  
+  <audio id="bgm" src="my-love-don-t-let-love-fade.mp3" loop></audio>
+  <script type="module" src="game.js"></script>
+  <script>
+    // Legacy support for non-module browsers
+    if (!window.gameModule) {
+      console.warn('Module not supported, loading fallback...');
+      // You could load a non-module version here if needed
+    }
+  </script>
+</body>
+</html>
