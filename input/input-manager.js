@@ -56,9 +56,15 @@ export class InputManager {
     return !!this.keys[key];
   }
 
+  isAnyKeyPressed(keyArray) {
+    return keyArray.some(key => this.keys[key]);
+  }
+
   isMovementKeyPressed() {
-    return this.keys['ArrowUp'] || this.keys['ArrowDown'] || 
-           this.keys['ArrowLeft'] || this.keys['ArrowRight'];
+    return this.isAnyKeyPressed(CONFIG.controls.keys.moveUp) ||
+           this.isAnyKeyPressed(CONFIG.controls.keys.moveDown) ||
+           this.isAnyKeyPressed(CONFIG.controls.keys.moveLeft) ||
+           this.isAnyKeyPressed(CONFIG.controls.keys.moveRight);
   }
 
   isShootKeyPressed() {
@@ -69,10 +75,10 @@ export class InputManager {
     let dx = 0;
     let dy = 0;
     
-    if (this.keys['ArrowLeft']) dx -= 1;
-    if (this.keys['ArrowRight']) dx += 1;
-    if (this.keys['ArrowUp']) dy -= 1;
-    if (this.keys['ArrowDown']) dy += 1;
+    if (this.isAnyKeyPressed(CONFIG.controls.keys.moveLeft)) dx -= 1;
+    if (this.isAnyKeyPressed(CONFIG.controls.keys.moveRight)) dx += 1;
+    if (this.isAnyKeyPressed(CONFIG.controls.keys.moveUp)) dy -= 1;
+    if (this.isAnyKeyPressed(CONFIG.controls.keys.moveDown)) dy += 1;
     
     return { dx, dy };
   }

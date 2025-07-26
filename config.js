@@ -152,6 +152,13 @@ export const CONFIG = {
   controls: {
     joystickDeadzone: 0.3,
     keys: {
+      // Movement keys
+      moveUp: ['ArrowUp', 'w', 'W'],
+      moveDown: ['ArrowDown', 's', 'S'],
+      moveLeft: ['ArrowLeft', 'a', 'A'],
+      moveRight: ['ArrowRight', 'd', 'D'],
+      
+      // Action keys
       fuel: ['f', 'F'],
       electricWave: ['e', 'E'],
       missile: ['1'],
