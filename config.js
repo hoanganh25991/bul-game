@@ -118,6 +118,7 @@ export const CONFIG = {
       turret: '#d32f2f'
     },
     bullet: '#ffeb3b',
+    supportBullet: '#2196f3',
     laser: {
       outer: '#0080ff',
       middle: '#00bfff',

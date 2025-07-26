@@ -22,7 +22,7 @@ export class Renderer {
     
     // Draw enemies
     enemies.forEach(enemy => {
-      this.drawTank(enemy.x, enemy.y, CONFIG.colors.enemies.main, CONFIG.colors.enemies.turret, true, enemy.hp, enemy.maxHp);
+      this.drawTank(enemy.x, enemy.y, CONFIG.colors.enemy.main, CONFIG.colors.enemy.turret, true, enemy.hp, enemy.maxHp);
     });
     
     // Draw bullets

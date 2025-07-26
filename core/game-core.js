@@ -309,7 +309,7 @@ export class GameCore {
       this.cameraSystem,
       this.tank,
       this.enemies.getEnemies(),
-      this.bullets.getBullets(),
+      this.bullets,
       this.weapons
     );
     
