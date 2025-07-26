@@ -359,17 +359,6 @@ export class GameCore {
       // Render effects
       this.effectsRenderer.render(this.weapons.getEffects());
       
-      this.frameCount++;
-    } else {
-      // Game is over, show game over screen
-      this.uiRenderer.renderGameOverScreen(this.gameState.isVictory, this.victorySystem);
-      
-      // Check for restart input
-      if (this.inputManager.keys['r'] || this.inputManager.keys['R'] || 
-          this.inputManager.keys['Enter'] || this.inputManager.keys[' ']) {
-        this.restartGame();
-      }
-    } else {
       // Debug keys during gameplay (only in development)
       if (this.inputManager.keys['k'] || this.inputManager.keys['K']) {
         // Kill tank for testing game over
@@ -390,6 +379,17 @@ export class GameCore {
         console.log('Debug: Damaged tanks - Main HP:', this.tank.hp, 'Support HP:', this.tank.supportTank.hp);
         this.inputManager.keys['d'] = false;
         this.inputManager.keys['D'] = false;
+      }
+      
+      this.frameCount++;
+    } else {
+      // Game is over, show game over screen
+      this.uiRenderer.renderGameOverScreen(this.gameState.isVictory, this.victorySystem);
+      
+      // Check for restart input
+      if (this.inputManager.keys['r'] || this.inputManager.keys['R'] || 
+          this.inputManager.keys['Enter'] || this.inputManager.keys[' ']) {
+        this.restartGame();
       }
     }
   }

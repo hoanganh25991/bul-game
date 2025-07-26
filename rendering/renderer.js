@@ -17,7 +17,7 @@ export class Renderer {
     this.drawDecorations(worldSystem, cameraSystem);
     
     // Draw game entities
-    this.drawTank(tank.x, tank.y, CONFIG.colors.tank.main, CONFIG.colors.tank.turret, false, tank.hp, tank.maxHp);
+    this.drawTank(tank.x, tank.y, CONFIG.colors.tank.main, CONFIG.colors.tank.turret, false, tank.hp, tank.maxHp, tank.angle, tank.turretAngle);
     this.drawSupportTank(tank.getSupportTank());
     
     // Draw enemies
@@ -36,6 +36,11 @@ export class Renderer {
     
     // Draw weapon effects
     this.drawWeaponEffects(weapons);
+    
+    // Draw auto-aim indicators
+    if (tank.autoAim && CONFIG.tank.autoAimVisualIndicators) {
+      this.drawAutoAimIndicators(tank, enemies);
+    }
   }
 
   drawTerrain(worldSystem, cameraSystem) {
@@ -208,17 +213,24 @@ export class Renderer {
     this.ctx.arc(centerX, centerY - 8, 15, 0, Math.PI * 2);
     this.ctx.fill();
     
-    // Main cannon
+    // Main cannon (rotated based on turret angle)
+    this.ctx.save();
+    this.ctx.translate(centerX, centerY - 8);
+    this.ctx.rotate(turretAngle);
+    
+    // Cannon barrel
     this.ctx.fillStyle = '#2a2a2a';
-    this.ctx.fillRect(centerX - 2, y - 12, 4, 32);
+    this.ctx.fillRect(-2, -24, 4, 32);
     
     // Cannon tip
     this.ctx.fillStyle = '#1a1a1a';
-    this.ctx.fillRect(centerX - 1.5, y - 12, 3, 4);
+    this.ctx.fillRect(-1.5, -24, 3, 4);
     
     // Cannon details
     this.ctx.fillStyle = '#333';
-    this.ctx.fillRect(centerX - 2.5, y + 8, 5, 8);
+    this.ctx.fillRect(-2.5, 0, 5, 8);
+    
+    this.ctx.restore();
     
     // Road wheels (improved)
     this.ctx.fillStyle = '#1a1a1a';
@@ -526,6 +538,94 @@ export class Renderer {
     this.ctx.globalAlpha = 0.9;
     this.ctx.fill();
     this.ctx.globalAlpha = 1;
+    this.ctx.restore();
+  }
+
+  drawAutoAimIndicators(tank, enemies) {
+    if (!enemies || enemies.length === 0) return;
+    
+    this.ctx.save();
+    
+    // Find the nearest enemy for main tank
+    const nearestEnemy = tank.findNearestEnemy(enemies);
+    if (nearestEnemy) {
+      // Draw targeting reticle on nearest enemy
+      this.drawTargetingReticle(nearestEnemy.x + 30, nearestEnemy.y + 35, '#ffeb3b', 'Main');
+      
+      // Draw aim line from tank to target
+      this.drawAimLine(tank.x + 30, tank.y + 35, nearestEnemy.x + 30, nearestEnemy.y + 35, '#ffeb3b');
+    }
+    
+    // Find the nearest enemy for support tank
+    const supportTank = tank.getSupportTank();
+    const nearestEnemyForSupport = tank.findNearestEnemyForSupport(enemies);
+    if (nearestEnemyForSupport && supportTank.hp > 0) {
+      // Draw targeting reticle on nearest enemy for support tank
+      this.drawTargetingReticle(nearestEnemyForSupport.x + 30, nearestEnemyForSupport.y + 35, '#2196f3', 'Support');
+      
+      // Draw aim line from support tank to target
+      this.drawAimLine(supportTank.x + 18, supportTank.y + 18, nearestEnemyForSupport.x + 30, nearestEnemyForSupport.y + 35, '#2196f3');
+    }
+    
+    this.ctx.restore();
+  }
+
+  drawTargetingReticle(x, y, color, type) {
+    this.ctx.save();
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 2;
+    this.ctx.globalAlpha = 0.8;
+    
+    const size = 25;
+    const innerSize = 8;
+    
+    // Draw outer circle
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, size, 0, Math.PI * 2);
+    this.ctx.stroke();
+    
+    // Draw inner circle
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, innerSize, 0, Math.PI * 2);
+    this.ctx.stroke();
+    
+    // Draw crosshairs
+    this.ctx.beginPath();
+    // Top
+    this.ctx.moveTo(x, y - size - 5);
+    this.ctx.lineTo(x, y - size + 5);
+    // Bottom
+    this.ctx.moveTo(x, y + size - 5);
+    this.ctx.lineTo(x, y + size + 5);
+    // Left
+    this.ctx.moveTo(x - size - 5, y);
+    this.ctx.lineTo(x - size + 5, y);
+    // Right
+    this.ctx.moveTo(x + size - 5, y);
+    this.ctx.lineTo(x + size + 5, y);
+    this.ctx.stroke();
+    
+    // Draw label
+    this.ctx.fillStyle = color;
+    this.ctx.font = '12px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(type, x, y - size - 15);
+    
+    this.ctx.restore();
+  }
+
+  drawAimLine(fromX, fromY, toX, toY, color) {
+    this.ctx.save();
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = 1;
+    this.ctx.globalAlpha = 0.4;
+    this.ctx.setLineDash([5, 5]);
+    
+    this.ctx.beginPath();
+    this.ctx.moveTo(fromX, fromY);
+    this.ctx.lineTo(toX, toY);
+    this.ctx.stroke();
+    
     this.ctx.restore();
   }
 }

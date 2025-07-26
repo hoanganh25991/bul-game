@@ -132,13 +132,24 @@ export class Tank {
       if (this.autoAim && window.gameCore?.enemies) {
         const nearestEnemy = this.findNearestEnemy(window.gameCore.enemies.getEnemies());
         if (nearestEnemy) {
-          const angle = MathUtils.angle(gunCenterX, gunTipY, nearestEnemy.worldX + 30, nearestEnemy.worldY + 35);
+          const targetPos = this.calculatePredictiveAim(gunCenterX, gunTipY, nearestEnemy, CONFIG.bullets.speed);
+          const angle = MathUtils.angle(gunCenterX, gunTipY, targetPos.x, targetPos.y);
           const bulletVector = MathUtils.vectorFromAngle(angle, CONFIG.bullets.speed);
           dx = bulletVector.x;
           dy = bulletVector.y;
           
-          // Update turret angle for visual feedback
-          this.turretAngle = angle;
+          // Update turret angle for visual feedback with smooth rotation
+          if (CONFIG.tank.autoAimSmoothness > 0) {
+            const angleDiff = angle - this.turretAngle;
+            // Normalize angle difference to [-π, π]
+            let normalizedDiff = angleDiff;
+            while (normalizedDiff > Math.PI) normalizedDiff -= 2 * Math.PI;
+            while (normalizedDiff < -Math.PI) normalizedDiff += 2 * Math.PI;
+            
+            this.turretAngle += normalizedDiff * CONFIG.tank.autoAimSmoothness;
+          } else {
+            this.turretAngle = angle;
+          }
         }
       }
       
@@ -167,7 +178,8 @@ export class Tank {
       if (this.autoAim && window.gameCore?.enemies) {
         const nearestEnemy = this.findNearestEnemyForSupport(window.gameCore.enemies.getEnemies());
         if (nearestEnemy) {
-          const angle = MathUtils.angle(gunCenterX, gunTipY, nearestEnemy.worldX + 30, nearestEnemy.worldY + 35);
+          const targetPos = this.calculatePredictiveAim(gunCenterX, gunTipY, nearestEnemy, CONFIG.bullets.speed);
+          const angle = MathUtils.angle(gunCenterX, gunTipY, targetPos.x, targetPos.y);
           const bulletVector = MathUtils.vectorFromAngle(angle, CONFIG.bullets.speed);
           dx = bulletVector.x;
           dy = bulletVector.y;
@@ -230,6 +242,36 @@ export class Tank {
     }
     
     return nearestEnemy;
+  }
+  
+  // Calculate predictive aim position for moving enemies
+  calculatePredictiveAim(shooterX, shooterY, enemy, bulletSpeed) {
+    if (!CONFIG.tank.autoAimPrediction) {
+      return { x: enemy.worldX + 30, y: enemy.worldY + 35 };
+    }
+    
+    // Calculate enemy velocity (direction towards tank)
+    const tankX = this.worldX + 30;
+    const tankY = this.worldY + 35;
+    const enemyToTankDx = tankX - enemy.worldX;
+    const enemyToTankDy = tankY - enemy.worldY;
+    const enemyToTankDistance = Math.sqrt(enemyToTankDx * enemyToTankDx + enemyToTankDy * enemyToTankDy);
+    
+    // Enemy velocity components (enemies move towards tank)
+    const enemyVx = enemyToTankDistance > 0 ? (enemyToTankDx / enemyToTankDistance) * enemy.speed : 0;
+    const enemyVy = enemyToTankDistance > 0 ? (enemyToTankDy / enemyToTankDistance) * enemy.speed : 0;
+    
+    // Calculate time for bullet to reach enemy
+    const dx = enemy.worldX + 30 - shooterX;
+    const dy = enemy.worldY + 35 - shooterY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const timeToHit = distance / bulletSpeed;
+    
+    // Predict enemy position
+    const predictedX = enemy.worldX + 30 + enemyVx * timeToHit;
+    const predictedY = enemy.worldY + 35 + enemyVy * timeToHit;
+    
+    return { x: predictedX, y: predictedY };
   }
 
   takeDamage(damage) {
