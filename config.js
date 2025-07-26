@@ -104,8 +104,8 @@ export const CONFIG = {
     minButtonSize: 50,
     joystickSize: 130,
     joystickHandleSize: 50,
-    margin: 25,
-    lineHeight: 25
+    margin: 20,
+    lineHeight: 20
   },
 
   // Colors

@@ -424,14 +424,19 @@ export class Renderer {
   drawLaser(bullet) {
     this.ctx.save();
     
-    // Calculate starting point from tank
+    // Calculate starting point from tank center (middle of main gun)
     const startX = bullet.x;
     const startY = bullet.y;
     
-    // Calculate end point of laser beam (shoot straight up)
+    // Calculate laser direction based on bullet velocity
     const laserLength = window.innerHeight + 100; // Laser length to end of screen
-    const endX = startX;
-    const endY = startY - laserLength;
+    const bulletSpeed = Math.sqrt(bullet.dx * bullet.dx + bullet.dy * bullet.dy);
+    const directionX = bulletSpeed > 0 ? bullet.dx / bulletSpeed : 0;
+    const directionY = bulletSpeed > 0 ? bullet.dy / bulletSpeed : -1;
+    
+    // Calculate end point of laser beam
+    const endX = startX + directionX * laserLength;
+    const endY = startY + directionY * laserLength;
     
     // Draw outer laser beam (dark blue with glow effect)
     this.ctx.strokeStyle = CONFIG.colors.laser.outer;
@@ -464,8 +469,9 @@ export class Renderer {
     
     // Draw sparkle effects along the laser beam
     for (let i = 0; i < 8; i++) {
-      const sparkY = startY - (i * 80 + Math.random() * 60);
-      const sparkX = startX + (Math.random() - 0.5) * 20;
+      const sparkDistance = i * 80 + Math.random() * 60;
+      const sparkX = startX + directionX * sparkDistance + (Math.random() - 0.5) * 20;
+      const sparkY = startY + directionY * sparkDistance + (Math.random() - 0.5) * 20;
       
       this.ctx.fillStyle = CONFIG.colors.laser.core;
       this.ctx.shadowColor = CONFIG.colors.laser.middle;
@@ -475,7 +481,7 @@ export class Renderer {
       this.ctx.fill();
     }
     
-    // Draw energy effect at gun tip
+    // Draw energy effect at gun tip (positioned at the center of the tank's main gun)
     this.ctx.fillStyle = CONFIG.colors.laser.core;
     this.ctx.shadowColor = CONFIG.colors.laser.middle;
     this.ctx.shadowBlur = 15;
