@@ -1,4 +1,5 @@
 import { CONFIG } from '../config.js';
+import { MathUtils } from '../utils/math-utils.js';
 
 export class Tank {
   constructor(scaleFactor) {
@@ -64,6 +65,16 @@ export class Tank {
     if (keys[' '] || keys['Space']) {
       this.shoot();
     }
+    
+    // Auto-shooting functionality
+    if (this.autoShoot && window.gameCore?.enemies) {
+      const enemies = window.gameCore.enemies.getEnemies();
+      if (enemies.length > 0) {
+        this.shoot();
+        // Also make support tank shoot automatically
+        this.supportTankShoot();
+      }
+    }
 
     // Update cooldowns
     if (this.shootCooldown > 0) this.shootCooldown--;
@@ -114,13 +125,30 @@ export class Tank {
       const gunCenterX = this.worldX + 30; // Tank center X (tank width is 60px, so center is +30)
       const gunTipY = this.worldY - 12; // Cannon tip Y position
       
+      let dx = 0;
+      let dy = -CONFIG.bullets.speed;
+      
+      // Auto-aim functionality
+      if (this.autoAim && window.gameCore?.enemies) {
+        const nearestEnemy = this.findNearestEnemy(window.gameCore.enemies.getEnemies());
+        if (nearestEnemy) {
+          const angle = MathUtils.angle(gunCenterX, gunTipY, nearestEnemy.worldX + 30, nearestEnemy.worldY + 35);
+          const bulletVector = MathUtils.vectorFromAngle(angle, CONFIG.bullets.speed);
+          dx = bulletVector.x;
+          dy = bulletVector.y;
+          
+          // Update turret angle for visual feedback
+          this.turretAngle = angle;
+        }
+      }
+      
       window.gameCore.bullets.addBullet({
         worldX: gunCenterX,
         worldY: gunTipY,
         x: this.x + 30, // Screen position (will be updated)
         y: this.y - 12, // Screen position (will be updated)
-        dx: 0,
-        dy: -CONFIG.bullets.speed
+        dx: dx,
+        dy: dy
       });
       this.shootCooldown = this.shootInterval;
     }
@@ -132,16 +160,76 @@ export class Tank {
       const gunCenterX = this.supportTank.worldX + 18; // Support tank center X (tank width is 36px, so center is +18)
       const gunTipY = this.supportTank.worldY - 7; // Support tank cannon tip Y position
       
+      let dx = 0;
+      let dy = -CONFIG.bullets.speed;
+      
+      // Auto-aim functionality for support tank
+      if (this.autoAim && window.gameCore?.enemies) {
+        const nearestEnemy = this.findNearestEnemyForSupport(window.gameCore.enemies.getEnemies());
+        if (nearestEnemy) {
+          const angle = MathUtils.angle(gunCenterX, gunTipY, nearestEnemy.worldX + 30, nearestEnemy.worldY + 35);
+          const bulletVector = MathUtils.vectorFromAngle(angle, CONFIG.bullets.speed);
+          dx = bulletVector.x;
+          dy = bulletVector.y;
+        }
+      }
+      
       window.gameCore.bullets.addSupportBullet({
         worldX: gunCenterX,
         worldY: gunTipY,
         x: this.supportTank.x + 18, // Screen position (will be updated)
         y: this.supportTank.y - 7, // Screen position (will be updated)
-        dx: 0,
-        dy: -CONFIG.bullets.speed
+        dx: dx,
+        dy: dy
       });
       this.supportTank.shootCooldown = this.supportTank.shootInterval;
     }
+  }
+
+  // Find the nearest enemy to the main tank for auto-aim
+  findNearestEnemy(enemies) {
+    if (!enemies || enemies.length === 0) return null;
+    
+    let nearestEnemy = null;
+    let nearestDistance = Infinity;
+    
+    for (const enemy of enemies) {
+      const distance = MathUtils.distance(
+        this.worldX + 30, this.worldY + 35, // Tank center
+        enemy.worldX + 30, enemy.worldY + 35 // Enemy center
+      );
+      
+      // Only consider enemies within auto-aim range
+      if (distance < nearestDistance && distance <= CONFIG.tank.autoAimRange) {
+        nearestDistance = distance;
+        nearestEnemy = enemy;
+      }
+    }
+    
+    return nearestEnemy;
+  }
+  
+  // Find the nearest enemy to the support tank for auto-aim
+  findNearestEnemyForSupport(enemies) {
+    if (!enemies || enemies.length === 0) return null;
+    
+    let nearestEnemy = null;
+    let nearestDistance = Infinity;
+    
+    for (const enemy of enemies) {
+      const distance = MathUtils.distance(
+        this.supportTank.worldX + 18, this.supportTank.worldY + 18, // Support tank center
+        enemy.worldX + 30, enemy.worldY + 35 // Enemy center
+      );
+      
+      // Only consider enemies within auto-aim range
+      if (distance < nearestDistance && distance <= CONFIG.tank.autoAimRange) {
+        nearestDistance = distance;
+        nearestEnemy = enemy;
+      }
+    }
+    
+    return nearestEnemy;
   }
 
   takeDamage(damage) {

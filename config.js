@@ -15,7 +15,9 @@ export const CONFIG = {
     shootInterval: 10, // frames between shots
     autoAim: true,
     canShootWhileMoving: true,
-    autoShoot: false
+    autoShoot: false,
+    autoAimRange: 400, // Maximum range for auto-aim
+    autoAimPrediction: true // Enable predictive aiming
   },
 
   // Support tank configuration

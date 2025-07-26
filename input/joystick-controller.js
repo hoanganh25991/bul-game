@@ -113,8 +113,15 @@ export class JoystickController {
     this.shootButton.addEventListener('touchstart', (e) => { e.preventDefault(); this.shoot(); });
     
     // Fuel button
-    this.fuelBtn.addEventListener('click', () => window.gameCore?.weapons?.useFuel());
-    this.fuelBtn.addEventListener('touchstart', (e) => { e.preventDefault(); window.gameCore?.weapons?.useFuel(); });
+    this.fuelBtn.addEventListener('click', () => {
+      console.log('Fuel button clicked');
+      window.gameCore?.weapons?.useFuel();
+    });
+    this.fuelBtn.addEventListener('touchstart', (e) => { 
+      e.preventDefault(); 
+      console.log('Fuel button touched');
+      window.gameCore?.weapons?.useFuel(); 
+    });
     
     // Electric wave button
     this.electricWaveBtn.addEventListener('click', () => window.gameCore?.weapons?.useElectricWave());

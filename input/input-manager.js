@@ -18,6 +18,7 @@ export class InputManager {
     if (window.gameCore) {
       // Fuel key
       if (CONFIG.controls.keys.fuel.includes(e.key)) {
+        console.log('Fuel key pressed:', e.key);
         window.gameCore.weapons.useFuel();
       }
       

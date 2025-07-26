@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel System Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #222;
+            color: white;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: #333;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .status {
+            background: #444;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .log {
+            background: #111;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 Fuel System Debug Test</h1>
+        
+        <div class="test-section">
+            <h2>Tank Status</h2>
+            <div class="status" id="tankStatus">Loading...</div>
+            <button onclick="damageTank()">Damage Main Tank (-2 HP)</button>
+            <button onclick="damageSupportTank()">Damage Support Tank (-1 HP)</button>
+            <button onclick="resetTanks()">Reset Both Tanks to Full HP</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>Fuel System Test</h2>
+            <div class="status" id="fuelStatus">Loading...</div>
+            <button onclick="testFuel()">🔥 Test Fuel (F key)</button>
+            <button onclick="testFuelButton()">⛽ Test Fuel Button</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>Debug Log</h2>
+            <button onclick="clearLog()">Clear Log</button>
+            <div class="log" id="debugLog"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Instructions</h2>
+            <p>1. First, damage one of the tanks using the buttons above</p>
+            <p>2. Then test the fuel system using either the F key or the Fuel button</p>
+            <p>3. Check the debug log for any errors or issues</p>
+            <p>4. Press 'D' key to damage tanks in the main game</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { CONFIG } from './config.js';
+        import { GameCore } from './core/game-core.js';
+
+        // Initialize game core for testing
+        window.gameCore = new GameCore();
+        
+        // Override console.log to capture debug messages
+        const originalLog = console.log;
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            logToDebug(args.join(' '));
+        };
+
+        function logToDebug(message) {
+            const debugLog = document.getElementById('debugLog');
+            const timestamp = new Date().toLocaleTimeString();
+            debugLog.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            debugLog.scrollTop = debugLog.scrollHeight;
+        }
+
+        function updateStatus() {
+            const tankStatus = document.getElementById('tankStatus');
+            const fuelStatus = document.getElementById('fuelStatus');
+            
+            if (window.gameCore && window.gameCore.tank && window.gameCore.weapons) {
+                const tank = window.gameCore.tank;
+                const weapons = window.gameCore.weapons;
+                
+                tankStatus.innerHTML = `
+                    Main Tank: ${tank.hp}/${tank.maxHp} HP<br>
+                    Support Tank: ${tank.supportTank.hp}/${tank.supportTank.maxHp} HP
+                `;
+                
+                const fuelSystem = weapons.fuelSystem;
+                fuelStatus.innerHTML = `
+                    Fuel Ready: ${fuelSystem.isReady}<br>
+                    Cooldown: ${Math.ceil(fuelSystem.currentCooldown)}ms<br>
+                    Heal Amount: ${CONFIG.fuel.healAmount} HP
+                `;
+            } else {
+                tankStatus.innerHTML = 'Game not initialized';
+                fuelStatus.innerHTML = 'Weapons not initialized';
+            }
+        }
+
+        // Test functions
+        window.damageTank = function() {
+            if (window.gameCore && window.gameCore.tank) {
+                window.gameCore.tank.takeDamage(2);
+                logToDebug('Damaged main tank by 2 HP');
+                updateStatus();
+            }
+        };
+
+        window.damageSupportTank = function() {
+            if (window.gameCore && window.gameCore.tank) {
+                window.gameCore.tank.supportTank.hp = Math.max(0, window.gameCore.tank.supportTank.hp - 1);
+                logToDebug('Damaged support tank by 1 HP');
+                updateStatus();
+            }
+        };
+
+        window.resetTanks = function() {
+            if (window.gameCore && window.gameCore.tank) {
+                window.gameCore.tank.hp = window.gameCore.tank.maxHp;
+                window.gameCore.tank.supportTank.hp = window.gameCore.tank.supportTank.maxHp;
+                logToDebug('Reset both tanks to full HP');
+                updateStatus();
+            }
+        };
+
+        window.testFuel = function() {
+            if (window.gameCore && window.gameCore.weapons) {
+                logToDebug('Testing fuel system via useFuel() method...');
+                window.gameCore.weapons.useFuel();
+                updateStatus();
+            }
+        };
+
+        window.testFuelButton = function() {
+            const fuelBtn = document.querySelector('#fuelBtn');
+            if (fuelBtn) {
+                logToDebug('Testing fuel button click...');
+                fuelBtn.click();
+                updateStatus();
+            } else {
+                logToDebug('Fuel button not found!');
+            }
+        };
+
+        window.clearLog = function() {
+            document.getElementById('debugLog').innerHTML = '';
+        };
+
+        // Initialize game core
+        document.addEventListener('DOMContentLoaded', function() {
+            logToDebug('Initializing game core for testing...');
+            
+            // Create a minimal canvas for testing
+            const canvas = document.createElement('canvas');
+            canvas.id = 'gameCanvas';
+            canvas.width = 800;
+            canvas.height = 600;
+            canvas.style.display = 'none';
+            document.body.appendChild(canvas);
+            
+            // Create fuel button for testing
+            const fuelBtn = document.createElement('button');
+            fuelBtn.id = 'fuelBtn';
+            fuelBtn.textContent = '⛽';
+            fuelBtn.style.display = 'none';
+            document.body.appendChild(fuelBtn);
+            
+            try {
+                window.gameCore.init();
+                logToDebug('Game core initialized successfully');
+                
+                // Start a minimal game loop for testing
+                window.gameCore.gameStarted = true;
+                updateStatus();
+                
+                // Update status every second
+                setInterval(updateStatus, 1000);
+                
+            } catch (error) {
+                logToDebug('Error initializing game core: ' + error.message);
+                console.error(error);
+            }
+        });
+
+        // Handle keyboard input for testing
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'f' || e.key === 'F') {
+                testFuel();
+            }
+        });
+    </script>
+</body>
+</html>

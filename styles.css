@@ -15,6 +15,11 @@ body {
   height: 100vh;
 }
 
+p {
+  font-size: 1rem;
+  line-height: 1rem;
+}
+
 .game-container {
   position: relative;
   width: 100vw;
@@ -94,8 +99,6 @@ canvas {
   height: 150px;
   touch-action: none;
 }
-
-
 
 .joystick-base {
   position: absolute;
