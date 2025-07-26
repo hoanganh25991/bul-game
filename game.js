@@ -21,7 +21,7 @@ let enemyBullets = [];
 let enemies = [];
 
 // Game systems
-let victorySystem, electricWaveSystem, missileSystem, fuelSystem, bulletTimeSystem, worldSystem;
+let victorySystem, electricWaveSystem, missileSystem, fuelSystem, bulletTimeSystem, worldSystem, cameraSystem;
 let joystick;
 
 // Messages
@@ -152,6 +152,22 @@ function initializeGameSystems() {
     terrain: [],
     decorations: []
   };
+
+  // Camera system for smooth following
+  cameraSystem = {
+    x: 0,
+    y: 0,
+    targetX: 0,
+    targetY: 0,
+    smoothness: 0.1, // Lower = smoother but slower, Higher = more responsive
+    boundaries: {
+      enabled: false,
+      minX: -1000,
+      maxX: 1000,
+      minY: -1000,
+      maxY: 1000
+    }
+  };
 }
 
 function initializeGameObjects() {
@@ -195,19 +211,63 @@ function initializeGameObjects() {
 }
 
 function positionTank() {
-  // Center tank on screen with proper offset for tank size (60x70 pixels)
-  // Use display dimensions, not canvas.width/height which includes devicePixelRatio
-  const displayWidth = window.innerWidth;
-  const displayHeight = window.innerHeight;
+  // Position tank in world coordinates (start at world center)
   const tankWidth = 60;
   const tankHeight = 70;
   
-  tank.x = (displayWidth / 2) - (tankWidth / 2);
-  tank.y = (displayHeight / 2) - (tankHeight / 2);
-  tank.worldX = tank.x;
-  tank.worldY = tank.y;
+  // World position (independent of screen)
+  tank.worldX = 0; // World center
+  tank.worldY = 0; // World center
   
-  // Tank is now properly centered on all devices
+  // Screen position will be calculated by camera system
+  updateTankScreenPosition();
+  
+  // Initialize camera to follow tank
+  cameraSystem.targetX = tank.worldX;
+  cameraSystem.targetY = tank.worldY;
+  cameraSystem.x = tank.worldX;
+  cameraSystem.y = tank.worldY;
+}
+
+function updateTankScreenPosition() {
+  // Convert world position to screen position based on camera
+  tank.x = tank.worldX - cameraSystem.x + (window.innerWidth / 2);
+  tank.y = tank.worldY - cameraSystem.y + (window.innerHeight / 2);
+}
+
+function updateCamera() {
+  // Set camera target to tank position
+  cameraSystem.targetX = tank.worldX;
+  cameraSystem.targetY = tank.worldY;
+  
+  // Smoothly interpolate camera position toward target
+  cameraSystem.x += (cameraSystem.targetX - cameraSystem.x) * cameraSystem.smoothness;
+  cameraSystem.y += (cameraSystem.targetY - cameraSystem.y) * cameraSystem.smoothness;
+  
+  // Apply camera boundaries if enabled
+  if (cameraSystem.boundaries.enabled) {
+    cameraSystem.x = Math.max(cameraSystem.boundaries.minX, 
+                             Math.min(cameraSystem.boundaries.maxX, cameraSystem.x));
+    cameraSystem.y = Math.max(cameraSystem.boundaries.minY, 
+                             Math.min(cameraSystem.boundaries.maxY, cameraSystem.y));
+  }
+  
+  // Update tank screen position based on camera
+  updateTankScreenPosition();
+}
+
+function worldToScreen(worldX, worldY) {
+  return {
+    x: worldX - cameraSystem.x + (window.innerWidth / 2),
+    y: worldY - cameraSystem.y + (window.innerHeight / 2)
+  };
+}
+
+function screenToWorld(screenX, screenY) {
+  return {
+    x: screenX + cameraSystem.x - (window.innerWidth / 2),
+    y: screenY + cameraSystem.y - (window.innerHeight / 2)
+  };
 }
 
 function initializeJoystick() {
@@ -358,10 +418,11 @@ function generateTerrain(startX, startY, width, height) {
 
 // Drawing functions
 function drawTerrain() {
-  const startTileX = Math.floor(worldSystem.offsetX / worldSystem.tileSize) - 1;
-  const startTileY = Math.floor(worldSystem.offsetY / worldSystem.tileSize) - 1;
-  const endTileX = startTileX + Math.ceil(canvas.width / worldSystem.tileSize) + 2;
-  const endTileY = startTileY + Math.ceil(canvas.height / worldSystem.tileSize) + 2;
+  // Calculate visible terrain based on camera position
+  const startTileX = Math.floor((cameraSystem.x - window.innerWidth/2) / worldSystem.tileSize) - 1;
+  const startTileY = Math.floor((cameraSystem.y - window.innerHeight/2) / worldSystem.tileSize) - 1;
+  const endTileX = startTileX + Math.ceil(window.innerWidth / worldSystem.tileSize) + 2;
+  const endTileY = startTileY + Math.ceil(window.innerHeight / worldSystem.tileSize) + 2;
   
   // Generate more terrain if needed
   generateTerrain(startTileX, startTileY, endTileX - startTileX, endTileY - startTileY);
@@ -372,8 +433,12 @@ function drawTerrain() {
       let key = `${x},${y}`;
       let terrain = worldSystem.terrain[key];
       if (terrain) {
-        let screenX = x * worldSystem.tileSize - worldSystem.offsetX;
-        let screenY = y * worldSystem.tileSize - worldSystem.offsetY;
+        // Convert world position to screen position
+        let worldTileX = x * worldSystem.tileSize;
+        let worldTileY = y * worldSystem.tileSize;
+        let screenPos = worldToScreen(worldTileX, worldTileY);
+        let screenX = screenPos.x;
+        let screenY = screenPos.y;
         
         switch (terrain.type) {
           case 'grass':
@@ -394,12 +459,13 @@ function drawTerrain() {
 
 function drawDecorations() {
   for (let decoration of worldSystem.decorations) {
-    let screenX = decoration.x - worldSystem.offsetX;
-    let screenY = decoration.y - worldSystem.offsetY;
+    let screenPos = worldToScreen(decoration.x, decoration.y);
+    let screenX = screenPos.x;
+    let screenY = screenPos.y;
     
     // Only draw if within screen bounds
-    if (screenX > -50 && screenX < canvas.width + 50 && 
-        screenY > -50 && screenY < canvas.height + 50) {
+    if (screenX > -50 && screenX < window.innerWidth + 50 && 
+        screenY > -50 && screenY < window.innerHeight + 50) {
       
       ctx.save();
       let size = decoration.size * 20;
@@ -460,41 +526,143 @@ function drawTank(x, y, color = CONFIG.colors.tank.main, turretColor = CONFIG.co
   
   // Draw health bar if hp and maxHp are provided
   if (typeof hp === 'number' && typeof maxHp === 'number') {
+    const healthBarWidth = isEnemy ? 40 : 50;
+    const healthBarHeight = isEnemy ? 6 : 8;
+    const healthBarY = y - (isEnemy ? 18 : 22);
+    
     ctx.strokeStyle = CONFIG.colors.ui.text;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x + 5, y - 15, 50, 8);
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x + (60 - healthBarWidth) / 2, healthBarY, healthBarWidth, healthBarHeight);
+    
     // Background health bar
     ctx.fillStyle = CONFIG.colors.ui.health.low;
-    ctx.fillRect(x + 5, y - 15, 50, 8);
-    // Change health bar color based on percentage
+    ctx.fillRect(x + (60 - healthBarWidth) / 2, healthBarY, healthBarWidth, healthBarHeight);
+    
+    // Health bar color based on percentage
     let percent = Math.max(0, Math.min(1, hp / maxHp));
     if (percent > 0.6) ctx.fillStyle = CONFIG.colors.ui.health.high;
     else if (percent > 0.3) ctx.fillStyle = CONFIG.colors.ui.health.medium;
     else ctx.fillStyle = CONFIG.colors.ui.health.low;
-    ctx.fillRect(x + 5, y - 15, 50 * percent, 8);
+    ctx.fillRect(x + (60 - healthBarWidth) / 2, healthBarY, healthBarWidth * percent, healthBarHeight);
   }
   
-  // Tank body
+  const centerX = x + 30;
+  const centerY = y + 35;  
+  
+  // Tank tracks/treads
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x + 5, y + 15, 50, 35);
+  ctx.fillRect(x + 10, y + 10, 40, 45);
+  
+  // Track details
+  ctx.fillStyle = '#444';
+  for (let i = 0; i < 6; i++) {
+    ctx.fillRect(x + 8 + i * 7, y + 12, 4, 41);
+  }
+  
+  // Main tank body (hull)
   ctx.fillStyle = color;
-  ctx.fillRect(x, y + 20, getScaledSize(60), getScaledSize(30));
+  ctx.fillRect(x + 12, y + 20, 36, 25);
   
-  // Turret
+  // Body shading
+  const gradient = ctx.createLinearGradient(x + 12, y + 20, x + 48, y + 45);
+  gradient.addColorStop(0, color);
+  gradient.addColorStop(1, darkenColor(color, -40));
+  ctx.fillStyle = gradient;
+  ctx.fillRect(x + 12, y + 20, 36, 25);
+  
+  // Hull details
+  ctx.fillStyle = darkenColor(color, -20);
+  ctx.fillRect(x + 15, y + 23, 30, 3);
+  ctx.fillRect(x + 15, y + 39, 30, 3);
+  
+  // Turret base
   ctx.fillStyle = turretColor;
-  ctx.fillRect(x + getScaledSize(15), y, getScaledSize(30), getScaledSize(30));
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - 5, 18, 0, Math.PI * 2);
+  ctx.fill();
   
-  // Cannon
-  ctx.fillStyle = '#222';
-  ctx.fillRect(x + getScaledSize(27), y - getScaledSize(20), getScaledSize(6), getScaledSize(20));
+  // Turret top
+  ctx.fillStyle = turretColor;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - 8, 15, 0, Math.PI * 2);
+  ctx.fill();
   
-  // Wheels
-  ctx.fillStyle = '#222';
-  for (let i = 0; i < 3; i++) {
+  // Turret shading
+  const turretGradient = ctx.createRadialGradient(centerX - 5, centerY - 10, 0, centerX, centerY - 8, 15);
+  turretGradient.addColorStop(0, turretColor);
+  turretGradient.addColorStop(1, darkenColor(turretColor, -30));
+  ctx.fillStyle = turretGradient;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - 8, 15, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Main cannon
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(centerX - 2, y - 12, 4, 32);
+  
+  // Cannon tip
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(centerX - 1.5, y - 12, 3, 4);
+  
+  // Cannon details
+  ctx.fillStyle = '#333';
+  ctx.fillRect(centerX - 2.5, y + 8, 5, 8);
+  
+  // Road wheels (improved)
+  ctx.fillStyle = '#1a1a1a';
+  const wheelPositions = [x + 18, x + 30, x + 42];
+  wheelPositions.forEach(wheelX => {
+    // Outer wheel
     ctx.beginPath();
-    ctx.arc(x + getScaledSize(15) + i * getScaledSize(15), y + getScaledSize(50), getScaledSize(8), 0, Math.PI * 2);
+    ctx.arc(wheelX, y + 52, 7, 0, Math.PI * 2);
     ctx.fill();
+    
+    // Wheel rim
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(wheelX, y + 52, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Wheel center
+    ctx.fillStyle = '#555';
+    ctx.beginPath();
+    ctx.arc(wheelX, y + 52, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#1a1a1a';
+  });
+  
+  // Drive sprockets (front and back)
+  ctx.fillStyle = '#2a2a2a';
+  ctx.beginPath();
+  ctx.arc(x + 8, y + 52, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 52, y + 52, 5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Antenna (for main tank only)
+  if (!isEnemy && color === CONFIG.colors.tank.main) {
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX + 10, centerY - 8);
+    ctx.lineTo(centerX + 15, centerY - 18);
+    ctx.stroke();
   }
   
   ctx.restore();
+}
+
+// Helper function to darken colors
+function darkenColor(color, amount) {
+  // Simple color darkening - convert hex to rgb and darken
+  const hex = color.replace('#', '');
+  const r = Math.max(0, parseInt(hex.substr(0, 2), 16) + amount);
+  const g = Math.max(0, parseInt(hex.substr(2, 2), 16) + amount); 
+  const b = Math.max(0, parseInt(hex.substr(4, 2), 16) + amount);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 function drawSupportTank(x, y, color = CONFIG.colors.supportTank.main, turretColor = CONFIG.colors.supportTank.turret, hp, maxHp) {
@@ -516,25 +684,101 @@ function drawSupportTank(x, y, color = CONFIG.colors.supportTank.main, turretCol
     ctx.fillRect(x + 3, y - 12, 30 * percent, 5);
   }
   
-  // Tank body (60% size)
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y + 12, 36, 18);
+  const centerX = x + 18;
+  const centerY = y + 21;
   
-  // Turret (60% size)
-  ctx.fillStyle = turretColor;
-  ctx.fillRect(x + 9, y, 18, 18);
+  // Tank tracks/treads (smaller)
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x + 3, y + 9, 30, 21);
+  ctx.fillRect(x + 6, y + 6, 24, 27);
   
-  // Cannon (60% size)
-  ctx.fillStyle = '#222';
-  ctx.fillRect(x + 16, y - 12, 4, 12);
-  
-  // Wheels (60% size)
-  ctx.fillStyle = '#222';
-  for (let i = 0; i < 3; i++) {
-    ctx.beginPath();
-    ctx.arc(x + 9 + i * 9, y + 30, 5, 0, Math.PI * 2);
-    ctx.fill();
+  // Track details
+  ctx.fillStyle = '#444';
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(x + 5 + i * 5, y + 8, 3, 25);
   }
+  
+  // Main tank body (hull) - smaller
+  ctx.fillStyle = color;
+  ctx.fillRect(x + 7, y + 12, 22, 15);
+  
+  // Body shading
+  const gradient = ctx.createLinearGradient(x + 7, y + 12, x + 29, y + 27);
+  gradient.addColorStop(0, color);
+  gradient.addColorStop(1, darkenColor(color, -40));
+  ctx.fillStyle = gradient;
+  ctx.fillRect(x + 7, y + 12, 22, 15);
+  
+  // Hull details
+  ctx.fillStyle = darkenColor(color, -20);
+  ctx.fillRect(x + 9, y + 14, 18, 2);
+  ctx.fillRect(x + 9, y + 23, 18, 2);
+  
+  // Turret base (smaller)
+  ctx.fillStyle = turretColor;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - 3, 11, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Turret top (smaller)
+  ctx.fillStyle = turretColor;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - 5, 9, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Turret shading
+  const turretGradient = ctx.createRadialGradient(centerX - 3, centerY - 6, 0, centerX, centerY - 5, 9);
+  turretGradient.addColorStop(0, turretColor);
+  turretGradient.addColorStop(1, darkenColor(turretColor, -30));
+  ctx.fillStyle = turretGradient;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY - 5, 9, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Main cannon (smaller)
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(centerX - 1.5, y - 7, 3, 19);
+  
+  // Cannon tip
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(centerX - 1, y - 7, 2, 3);
+  
+  // Cannon details
+  ctx.fillStyle = '#333';
+  ctx.fillRect(centerX - 2, y + 5, 4, 5);
+  
+  // Road wheels (smaller)
+  ctx.fillStyle = '#1a1a1a';
+  const wheelPositions = [x + 11, x + 25];
+  wheelPositions.forEach(wheelX => {
+    // Outer wheel
+    ctx.beginPath();
+    ctx.arc(wheelX, y + 31, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Wheel rim
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(wheelX, y + 31, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Wheel center
+    ctx.fillStyle = '#555';
+    ctx.beginPath();
+    ctx.arc(wheelX, y + 31, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#1a1a1a';
+  });
+  
+  // Drive sprockets (smaller)
+  ctx.fillStyle = '#2a2a2a';
+  ctx.beginPath();
+  ctx.arc(x + 5, y + 31, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 31, y + 31, 3, 0, Math.PI * 2);
+  ctx.fill();
   
   ctx.restore();
 }
@@ -944,10 +1188,10 @@ function updateKeyStates() {
 function shoot() {
   if (tank.shootCooldown <= 0) {
     bullets.push({
-      x: tank.x + 30,
-      y: tank.y,
-      worldX: tank.worldX + 30,
-      worldY: tank.worldY,
+      worldX: tank.worldX,
+      worldY: tank.worldY - 20, // Shoot from front of tank
+      x: tank.x, // Screen position (will be updated)
+      y: tank.y - 20, // Screen position (will be updated)
       dx: 0,
       dy: -CONFIG.bullets.speed
     });
@@ -1180,35 +1424,36 @@ function resetGame() {
 function spawnEnemies() {
   // Spawn enemies based on frame count
   if (frameCount % CONFIG.enemies.spawnInterval === 0 && frameCount > 0) {
-    // Random spawn position on edges using display dimensions
-    const displayWidth = window.innerWidth;
-    const displayHeight = window.innerHeight;
-    let x, y;
+    // Spawn enemies around the camera view in world coordinates
+    const spawnDistance = Math.max(window.innerWidth, window.innerHeight) / 2 + 200;
+    let worldX, worldY;
     let edge = Math.floor(Math.random() * 4);
     
     switch (edge) {
       case 0: // Top
-        x = Math.random() * displayWidth;
-        y = -60;
+        worldX = cameraSystem.x + (Math.random() - 0.5) * window.innerWidth;
+        worldY = cameraSystem.y - spawnDistance;
         break;
       case 1: // Right
-        x = displayWidth + 60;
-        y = Math.random() * displayHeight;
+        worldX = cameraSystem.x + spawnDistance;
+        worldY = cameraSystem.y + (Math.random() - 0.5) * window.innerHeight;
         break;
       case 2: // Bottom
-        x = Math.random() * displayWidth;
-        y = displayHeight + 60;
+        worldX = cameraSystem.x + (Math.random() - 0.5) * window.innerWidth;
+        worldY = cameraSystem.y + spawnDistance;
         break;
       case 3: // Left
-        x = -60;
-        y = Math.random() * displayHeight;
+        worldX = cameraSystem.x - spawnDistance;
+        worldY = cameraSystem.y + (Math.random() - 0.5) * window.innerHeight;
         break;
     }
     
     enemies.push({
       id: enemyIdCounter++,
-      x: x,
-      y: y,
+      worldX: worldX,
+      worldY: worldY,
+      x: 0, // Will be calculated by worldToScreen
+      y: 0, // Will be calculated by worldToScreen
       hp: CONFIG.enemies.hp,
       maxHp: CONFIG.enemies.maxHp,
       speed: CONFIG.enemies.speed
@@ -1398,10 +1643,10 @@ function updateBulletTimeSystem() {
     if (keys[' '] || keys['Space']) {
       // Create laser bullet
       bullets.push({
-        x: tank.x + 30,
-        y: tank.y,
-        worldX: tank.worldX + 30,
-        worldY: tank.worldY,
+        worldX: tank.worldX,
+        worldY: tank.worldY - 20,
+        x: tank.x,
+        y: tank.y - 20,
         dx: 0,
         dy: -CONFIG.bullets.speed * 2, // Faster bullets during bullet time
         isLaser: true
@@ -1426,11 +1671,14 @@ function update() {
   drawTerrain();
   drawDecorations();
   
-  // Update tank movement
-  if (keys['ArrowUp']) tank.y -= tank.speed;
-  if (keys['ArrowDown']) tank.y += tank.speed;
-  if (keys['ArrowLeft']) tank.x -= tank.speed;
-  if (keys['ArrowRight']) tank.x += tank.speed;
+  // Update tank movement in world coordinates
+  if (keys['ArrowUp']) tank.worldY -= tank.speed;
+  if (keys['ArrowDown']) tank.worldY += tank.speed;
+  if (keys['ArrowLeft']) tank.worldX -= tank.speed;
+  if (keys['ArrowRight']) tank.worldX += tank.speed;
+  
+  // Update camera to follow tank smoothly
+  updateCamera();
   
   // Update shooting
   if (keys[' '] || keys['Space']) {
@@ -1446,21 +1694,31 @@ function update() {
   // Update bullets
   for (let i = bullets.length - 1; i >= 0; i--) {
     let bullet = bullets[i];
-    bullet.y += bullet.dy;
-    bullet.x += bullet.dx;
     
-    // Remove bullets that are off screen
-    if (bullet.y < -10 || bullet.y > window.innerHeight + 10 || 
-        bullet.x < -10 || bullet.x > window.innerWidth + 10) {
+    // Update bullet world position
+    bullet.worldY += bullet.dy;
+    bullet.worldX += bullet.dx;
+    
+    // Convert to screen position for drawing
+    let bulletScreen = worldToScreen(bullet.worldX, bullet.worldY);
+    bullet.x = bulletScreen.x;
+    bullet.y = bulletScreen.y;
+    
+    // Remove bullets that are too far from camera
+    let distanceFromCamera = Math.sqrt(
+      (bullet.worldX - cameraSystem.x) * (bullet.worldX - cameraSystem.x) + 
+      (bullet.worldY - cameraSystem.y) * (bullet.worldY - cameraSystem.y)
+    );
+    if (distanceFromCamera > 1000) {
       bullets.splice(i, 1);
       continue;
     }
     
-    // Check bullet-enemy collision
+    // Check bullet-enemy collision in world coordinates
     for (let j = enemies.length - 1; j >= 0; j--) {
       let enemy = enemies[j];
-      let dx = bullet.x - (enemy.x + 30);
-      let dy = bullet.y - (enemy.y + 35);
+      let dx = bullet.worldX - enemy.worldX;
+      let dy = bullet.worldY - enemy.worldY;
       let distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance < 30) {
@@ -1477,7 +1735,9 @@ function update() {
       }
     }
     
-    if (i >= 0 && bullets[i]) {
+    // Draw bullet if it's on screen
+    if (i >= 0 && bullets[i] && bullet.x > -50 && bullet.x < window.innerWidth + 50 && 
+        bullet.y > -50 && bullet.y < window.innerHeight + 50) {
       drawBullet(bullets[i]);
     }
   }
@@ -1486,17 +1746,22 @@ function update() {
   for (let i = enemies.length - 1; i >= 0; i--) {
     let enemy = enemies[i];
     
-    // Move enemy towards tank
-    let dx = tank.x - enemy.x;
-    let dy = tank.y - enemy.y;
+    // Move enemy towards tank in world coordinates
+    let dx = tank.worldX - enemy.worldX;
+    let dy = tank.worldY - enemy.worldY;
     let distance = Math.sqrt(dx * dx + dy * dy);
     
     if (distance > 0) {
-      enemy.x += (dx / distance) * CONFIG.enemies.speed;
-      enemy.y += (dy / distance) * CONFIG.enemies.speed;
+      enemy.worldX += (dx / distance) * CONFIG.enemies.speed;
+      enemy.worldY += (dy / distance) * CONFIG.enemies.speed;
     }
     
-    // Check tank-enemy collision
+    // Convert enemy world position to screen position
+    let enemyScreen = worldToScreen(enemy.worldX, enemy.worldY);
+    enemy.x = enemyScreen.x;
+    enemy.y = enemyScreen.y;
+    
+    // Check tank-enemy collision in world coordinates
     if (distance < 50) {
       tank.hp--;
       enemies.splice(i, 1);
@@ -1509,8 +1774,11 @@ function update() {
       continue;
     }
     
-    // Draw enemy
-    drawTank(enemy.x, enemy.y, CONFIG.colors.enemy.main, CONFIG.colors.enemy.turret, true, enemy.hp, enemy.maxHp);
+    // Only draw enemies that are visible on screen
+    if (enemy.x > -100 && enemy.x < window.innerWidth + 100 && 
+        enemy.y > -100 && enemy.y < window.innerHeight + 100) {
+      drawTank(enemy.x, enemy.y, CONFIG.colors.enemy.main, CONFIG.colors.enemy.turret, true, enemy.hp, enemy.maxHp);
+    }
   }
   
   // Draw tank
