@@ -39,7 +39,7 @@ export const CONFIG = {
   // Enemy configuration
   enemies: {
     speed: 2,
-    spawnInterval: 120, // frames
+    spawnInterval: 60, // frames (spawn every second at 60fps)
     hp: 3,
     maxHp: 3
   },

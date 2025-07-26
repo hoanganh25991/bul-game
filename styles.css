@@ -134,8 +134,8 @@ canvas {
   right: 30px;
   display: none;
   z-index: 10;
-  flex-direction: row;
-  gap: 20px;
+  flex-direction: column;
+  gap: 15px;
   align-items: center;
 }
 

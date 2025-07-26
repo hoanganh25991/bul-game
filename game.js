@@ -734,12 +734,18 @@ function startGame(e) {
   
   canvas.style.display = 'block';
   
+  // Add game-started class to game container
+  const gameContainer = document.querySelector('.game-container');
+  if (gameContainer) {
+    gameContainer.classList.add('game-started');
+  }
+  
   // Show controls safely
   if (joystickContainer) {
     joystickContainer.style.display = 'block';
   }
   if (shootControls) {
-    shootControls.style.display = 'block';
+    shootControls.style.display = 'flex';
   }
   
   gameStarted = true;
@@ -956,6 +962,7 @@ function useFuel() {
 }
 
 function useElectricWave() {
+  console.log('Electric wave clicked! Ready:', electricWaveSystem.isReady);
   if (!electricWaveSystem.isReady) return;
   
   // Create new electric wave
@@ -971,6 +978,8 @@ function useElectricWave() {
     opacity: 1,
     hitEnemies: []
   });
+  
+  console.log('Electric wave created!');
   
   // Start cooldown
   electricWaveSystem.isReady = false;
@@ -1153,7 +1162,7 @@ function resetGame() {
 
 function spawnEnemies() {
   // Spawn enemies based on frame count
-  if (frameCount % CONFIG.enemies.spawnInterval === 0) {
+  if (frameCount % CONFIG.enemies.spawnInterval === 0 && frameCount > 0) {
     // Random spawn position on edges
     let x, y;
     let edge = Math.floor(Math.random() * 4);
@@ -1185,6 +1194,8 @@ function spawnEnemies() {
       maxHp: CONFIG.enemies.maxHp,
       speed: CONFIG.enemies.speed
     });
+    
+    console.log(`Enemy spawned! Total enemies: ${enemies.length}`);
   }
   
   frameCount++;
