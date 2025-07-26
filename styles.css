@@ -95,6 +95,8 @@ canvas {
   touch-action: none;
 }
 
+
+
 .joystick-base {
   position: absolute;
   width: 100%;
@@ -324,6 +326,17 @@ canvas {
 }
 
 /* Responsive Design */
+
+/* Show controls on mobile devices when game starts */
+@media (max-width: 768px) {
+  .game-container.game-started .joystick-container {
+    display: block !important;
+  }
+  
+  .game-container.game-started .shoot-controls {
+    display: flex !important;
+  }
+}
 
 /* Tablet */
 @media (max-width: 768px) {

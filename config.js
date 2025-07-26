@@ -4,7 +4,7 @@ export const CONFIG = {
   canvas: {
     baseWidth: 1920,
     baseHeight: 1080,
-    maxScaleFactor: 2
+    maxScaleFactor: 0.4
   },
 
   // Tank configuration

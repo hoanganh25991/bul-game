@@ -1151,6 +1151,235 @@ function resetGame() {
   requestAnimationFrame(gameLoop);
 }
 
+function spawnEnemies() {
+  // Spawn enemies based on frame count
+  if (frameCount % CONFIG.enemies.spawnInterval === 0) {
+    // Random spawn position on edges
+    let x, y;
+    let edge = Math.floor(Math.random() * 4);
+    
+    switch (edge) {
+      case 0: // Top
+        x = Math.random() * canvas.width;
+        y = -60;
+        break;
+      case 1: // Right
+        x = canvas.width + 60;
+        y = Math.random() * canvas.height;
+        break;
+      case 2: // Bottom
+        x = Math.random() * canvas.width;
+        y = canvas.height + 60;
+        break;
+      case 3: // Left
+        x = -60;
+        y = Math.random() * canvas.height;
+        break;
+    }
+    
+    enemies.push({
+      id: enemyIdCounter++,
+      x: x,
+      y: y,
+      hp: CONFIG.enemies.hp,
+      maxHp: CONFIG.enemies.maxHp,
+      speed: CONFIG.enemies.speed
+    });
+  }
+  
+  frameCount++;
+}
+
+function updateElectricWaves() {
+  // Update electric waves
+  for (let i = electricWaveSystem.waves.length - 1; i >= 0; i--) {
+    let wave = electricWaveSystem.waves[i];
+    wave.radius += wave.speed;
+    
+    // Check collision with enemies
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let enemy = enemies[j];
+      
+      // Skip if already hit by this wave
+      if (wave.hitEnemies.includes(enemy.id)) continue;
+      
+      let dx = enemy.x + 30 - wave.x;
+      let dy = enemy.y + 35 - wave.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance <= wave.radius && distance >= wave.radius - wave.speed) {
+        // Hit enemy
+        enemy.hp -= wave.damage;
+        wave.hitEnemies.push(enemy.id);
+        
+        if (enemy.hp <= 0) {
+          enemies.splice(j, 1);
+          victorySystem.enemiesKilled++;
+        }
+      }
+    }
+    
+    // Draw wave
+    ctx.save();
+    ctx.strokeStyle = CONFIG.colors.electricWave;
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = wave.opacity;
+    ctx.beginPath();
+    ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    
+    // Fade out and remove when too big
+    wave.opacity -= 0.02;
+    if (wave.radius > wave.maxRadius || wave.opacity <= 0) {
+      electricWaveSystem.waves.splice(i, 1);
+    }
+  }
+}
+
+function updateMissiles() {
+  // Update missiles
+  for (let i = missileSystem.missiles.length - 1; i >= 0; i--) {
+    let missile = missileSystem.missiles[i];
+    
+    // Find nearest enemy for homing
+    let nearestEnemy = null;
+    let nearestDistance = Infinity;
+    
+    for (let enemy of enemies) {
+      let dx = enemy.x + 30 - missile.x;
+      let dy = enemy.y + 35 - missile.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < nearestDistance && distance < missileSystem.homingRange) {
+        nearestEnemy = enemy;
+        nearestDistance = distance;
+      }
+    }
+    
+    // Adjust velocity towards target
+    if (nearestEnemy) {
+      let dx = nearestEnemy.x + 30 - missile.x;
+      let dy = nearestEnemy.y + 35 - missile.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance > 0) {
+        missile.vx += (dx / distance) * 0.3;
+        missile.vy += (dy / distance) * 0.3;
+        
+        // Limit speed
+        let speed = Math.sqrt(missile.vx * missile.vx + missile.vy * missile.vy);
+        if (speed > missileSystem.missileSpeed) {
+          missile.vx = (missile.vx / speed) * missileSystem.missileSpeed;
+          missile.vy = (missile.vy / speed) * missileSystem.missileSpeed;
+        }
+      }
+    }
+    
+    // Update position
+    missile.x += missile.vx;
+    missile.y += missile.vy;
+    
+    // Add trail point
+    missile.trailPoints.push({ x: missile.x, y: missile.y });
+    if (missile.trailPoints.length > 10) {
+      missile.trailPoints.shift();
+    }
+    
+    // Check collision with enemies
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let enemy = enemies[j];
+      let dx = missile.x - (enemy.x + 30);
+      let dy = missile.y - (enemy.y + 35);
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < 30) {
+        // Explode missile
+        explodeMissile(missile, i);
+        break;
+      }
+    }
+    
+    // Remove if off screen
+    if (missile.x < -100 || missile.x > canvas.width + 100 || 
+        missile.y < -100 || missile.y > canvas.height + 100) {
+      missileSystem.missiles.splice(i, 1);
+      continue;
+    }
+    
+    // Draw missile trail
+    if (missile.trailPoints.length > 1) {
+      ctx.save();
+      ctx.strokeStyle = CONFIG.colors.missile;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(missile.trailPoints[0].x, missile.trailPoints[0].y);
+      for (let point of missile.trailPoints) {
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+    
+    // Draw missile
+    ctx.save();
+    ctx.fillStyle = CONFIG.colors.missile;
+    ctx.beginPath();
+    ctx.arc(missile.x, missile.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function explodeMissile(missile, index) {
+  // Create explosion effect and damage enemies in radius
+  for (let j = enemies.length - 1; j >= 0; j--) {
+    let enemy = enemies[j];
+    let dx = missile.x - (enemy.x + 30);
+    let dy = missile.y - (enemy.y + 35);
+    let distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance < missileSystem.explosionRadius) {
+      enemy.hp -= missileSystem.missileDamage;
+      if (enemy.hp <= 0) {
+        enemies.splice(j, 1);
+        victorySystem.enemiesKilled++;
+      }
+    }
+  }
+  
+  // Draw explosion effect
+  ctx.save();
+  ctx.fillStyle = CONFIG.colors.missile;
+  ctx.globalAlpha = 0.7;
+  ctx.beginPath();
+  ctx.arc(missile.x, missile.y, missileSystem.explosionRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  
+  // Remove missile
+  missileSystem.missiles.splice(index, 1);
+}
+
+function updateBulletTimeSystem() {
+  if (bulletTimeSystem.isActive) {
+    // Enable laser shooting
+    if (keys[' '] || keys['Space']) {
+      // Create laser bullet
+      bullets.push({
+        x: tank.x + 30,
+        y: tank.y,
+        worldX: tank.worldX + 30,
+        worldY: tank.worldY,
+        dx: 0,
+        dy: -CONFIG.bullets.speed * 2, // Faster bullets during bullet time
+        isLaser: true
+      });
+    }
+  }
+}
+
 function gameLoop() {
   if (gameStarted) {
     optimizePerformance();
@@ -1181,6 +1410,9 @@ function update() {
   // Update cooldowns
   if (tank.shootCooldown > 0) tank.shootCooldown--;
   
+  // Spawn enemies
+  spawnEnemies();
+  
   // Update bullets
   for (let i = bullets.length - 1; i >= 0; i--) {
     let bullet = bullets[i];
@@ -1194,7 +1426,61 @@ function update() {
       continue;
     }
     
-    drawBullet(bullet);
+    // Check bullet-enemy collision
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      let enemy = enemies[j];
+      let dx = bullet.x - (enemy.x + 30);
+      let dy = bullet.y - (enemy.y + 35);
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if (distance < 30) {
+        // Hit enemy
+        enemy.hp--;
+        bullets.splice(i, 1);
+        
+        if (enemy.hp <= 0) {
+          // Enemy destroyed
+          enemies.splice(j, 1);
+          victorySystem.enemiesKilled++;
+        }
+        break;
+      }
+    }
+    
+    if (i >= 0 && bullets[i]) {
+      drawBullet(bullets[i]);
+    }
+  }
+  
+  // Update and draw enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    let enemy = enemies[i];
+    
+    // Move enemy towards tank
+    let dx = tank.x - enemy.x;
+    let dy = tank.y - enemy.y;
+    let distance = Math.sqrt(dx * dx + dy * dy);
+    
+    if (distance > 0) {
+      enemy.x += (dx / distance) * CONFIG.enemies.speed;
+      enemy.y += (dy / distance) * CONFIG.enemies.speed;
+    }
+    
+    // Check tank-enemy collision
+    if (distance < 50) {
+      tank.hp--;
+      enemies.splice(i, 1);
+      if (tank.hp <= 0) {
+        // Game over
+        gameStarted = false;
+        alert('Game Over! Enemies killed: ' + victorySystem.enemiesKilled);
+        location.reload();
+      }
+      continue;
+    }
+    
+    // Draw enemy
+    drawTank(enemy.x, enemy.y, CONFIG.colors.enemy.main, CONFIG.colors.enemy.turret, true, enemy.hp, enemy.maxHp);
   }
   
   // Draw tank
@@ -1206,6 +1492,15 @@ function update() {
   if (supportTank.hp > 0) {
     drawSupportTank(supportTank.x, supportTank.y, CONFIG.colors.supportTank.main, CONFIG.colors.supportTank.turret, supportTank.hp, supportTank.maxHp);
   }
+  
+  // Update and draw electric waves
+  updateElectricWaves();
+  
+  // Update and draw missiles
+  updateMissiles();
+  
+  // Update bullet time system
+  updateBulletTimeSystem();
   
   // Display UI
   ctx.save();
