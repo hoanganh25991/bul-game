@@ -174,16 +174,16 @@ export class GameCore {
   }
 
   setupEventListeners() {
-    // Service worker registration
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('sw.js').then(function(reg) {
-          // Service worker registered
-        }, function(err) {
-          // Registration failed
-        });
-      });
-    }
+    // Service worker registration - TEMPORARILY DISABLED
+    // if ('serviceWorker' in navigator) {
+    //   window.addEventListener('load', function() {
+    //     navigator.serviceWorker.register('sw.js').then(function(reg) {
+    //       // Service worker registered
+    //     }, function(err) {
+    //       // Registration failed
+    //     });
+    //   });
+    // }
 
     // Setup input event listeners
     this.inputManager.setupEventListeners();
