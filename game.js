@@ -40,7 +40,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeDOM() {
-  const startBtn = document.getElementById('startBtn');
   canvas = document.getElementById('gameCanvas');
   ctx = canvas.getContext('2d');
   bgm = document.getElementById('bgm');
@@ -55,6 +54,7 @@ function initializeDOM() {
   shootButton = document.getElementById('shootBtn');
 
   // Check for critical elements
+  const startBtn = document.getElementById('startBtn');
   if (!startBtn) {
     console.error('Start button not found!');
     alert('Lỗi: Không tìm thấy nút Bắt đầu!');
@@ -300,6 +300,324 @@ function optimizePerformance() {
     scaleFactor *= 1.01;
     updateControlsScale();
   }
+}
+
+// Terrain generation
+function generateTerrain(startX, startY, width, height) {
+  for (let x = startX; x < startX + width; x++) {
+    for (let y = startY; y < startY + height; y++) {
+      let key = `${x},${y}`;
+      if (!worldSystem.terrain[key]) {
+        // Generate basic terrain
+        let terrainType = 'grass';
+        if (Math.random() < 0.1) terrainType = 'dirt';
+        else if (Math.random() < 0.05) terrainType = 'stone';
+        
+        worldSystem.terrain[key] = {
+          type: terrainType,
+          x: x,
+          y: y
+        };
+        
+        // Generate decorations
+        if (Math.random() < 0.08) {
+          let decorationType = 'grass_tuft';
+          if (Math.random() < 0.3) decorationType = 'small_rock';
+          else if (Math.random() < 0.1) decorationType = 'tree';
+          else if (Math.random() < 0.2) decorationType = 'bush';
+          
+          worldSystem.decorations.push({
+            type: decorationType,
+            x: x * worldSystem.tileSize + Math.random() * worldSystem.tileSize,
+            y: y * worldSystem.tileSize + Math.random() * worldSystem.tileSize,
+            size: 0.5 + Math.random() * 0.5
+          });
+        }
+      }
+    }
+  }
+}
+
+// Drawing functions
+function drawTerrain() {
+  const startTileX = Math.floor(worldSystem.offsetX / worldSystem.tileSize) - 1;
+  const startTileY = Math.floor(worldSystem.offsetY / worldSystem.tileSize) - 1;
+  const endTileX = startTileX + Math.ceil(canvas.width / worldSystem.tileSize) + 2;
+  const endTileY = startTileY + Math.ceil(canvas.height / worldSystem.tileSize) + 2;
+  
+  // Generate more terrain if needed
+  generateTerrain(startTileX, startTileY, endTileX - startTileX, endTileY - startTileY);
+  
+  // Draw terrain
+  for (let x = startTileX; x < endTileX; x++) {
+    for (let y = startTileY; y < endTileY; y++) {
+      let key = `${x},${y}`;
+      let terrain = worldSystem.terrain[key];
+      if (terrain) {
+        let screenX = x * worldSystem.tileSize - worldSystem.offsetX;
+        let screenY = y * worldSystem.tileSize - worldSystem.offsetY;
+        
+        switch (terrain.type) {
+          case 'grass':
+            ctx.fillStyle = CONFIG.colors.terrain.grass;
+            break;
+          case 'dirt':
+            ctx.fillStyle = CONFIG.colors.terrain.dirt;
+            break;
+          case 'stone':
+            ctx.fillStyle = CONFIG.colors.terrain.stone;
+            break;
+        }
+        ctx.fillRect(screenX, screenY, worldSystem.tileSize, worldSystem.tileSize);
+      }
+    }
+  }
+}
+
+function drawDecorations() {
+  for (let decoration of worldSystem.decorations) {
+    let screenX = decoration.x - worldSystem.offsetX;
+    let screenY = decoration.y - worldSystem.offsetY;
+    
+    // Only draw if within screen bounds
+    if (screenX > -50 && screenX < canvas.width + 50 && 
+        screenY > -50 && screenY < canvas.height + 50) {
+      
+      ctx.save();
+      let size = decoration.size * 20;
+      
+      switch (decoration.type) {
+        case 'grass_tuft':
+          ctx.fillStyle = '#228B22';
+          ctx.beginPath();
+          for (let i = 0; i < 5; i++) {
+            let angle = (i / 5) * Math.PI * 2;
+            let x = screenX + Math.cos(angle) * size * 0.3;
+            let y = screenY + Math.sin(angle) * size * 0.2;
+            ctx.lineTo(x, y);
+          }
+          ctx.fill();
+          break;
+          
+        case 'small_rock':
+          ctx.fillStyle = '#A0A0A0';
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, size * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#808080';
+          ctx.beginPath();
+          ctx.arc(screenX - size * 0.1, screenY - size * 0.1, size * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+          
+        case 'tree':
+          // Tree trunk
+          ctx.fillStyle = '#8B4513';
+          ctx.fillRect(screenX - size * 0.1, screenY - size * 0.3, size * 0.2, size * 0.6);
+          // Tree leaves
+          ctx.fillStyle = '#228B22';
+          ctx.beginPath();
+          ctx.arc(screenX, screenY - size * 0.3, size * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+          
+        case 'bush':
+          ctx.fillStyle = '#32CD32';
+          ctx.beginPath();
+          ctx.arc(screenX, screenY, size * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#228B22';
+          ctx.beginPath();
+          ctx.arc(screenX - size * 0.1, screenY - size * 0.1, size * 0.2, 0, Math.PI * 2);
+          ctx.fill();
+          break;
+      }
+      ctx.restore();
+    }
+  }
+}
+
+function drawTank(x, y, color = CONFIG.colors.tank.main, turretColor = CONFIG.colors.tank.turret, isEnemy = false, hp, maxHp, angle = 0, turretAngle = 0) {
+  ctx.save();
+  
+  // Draw health bar if hp and maxHp are provided
+  if (typeof hp === 'number' && typeof maxHp === 'number') {
+    ctx.strokeStyle = CONFIG.colors.ui.text;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 5, y - 15, 50, 8);
+    // Background health bar
+    ctx.fillStyle = CONFIG.colors.ui.health.low;
+    ctx.fillRect(x + 5, y - 15, 50, 8);
+    // Change health bar color based on percentage
+    let percent = Math.max(0, Math.min(1, hp / maxHp));
+    if (percent > 0.6) ctx.fillStyle = CONFIG.colors.ui.health.high;
+    else if (percent > 0.3) ctx.fillStyle = CONFIG.colors.ui.health.medium;
+    else ctx.fillStyle = CONFIG.colors.ui.health.low;
+    ctx.fillRect(x + 5, y - 15, 50 * percent, 8);
+  }
+  
+  // Tank body
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + 20, getScaledSize(60), getScaledSize(30));
+  
+  // Turret
+  ctx.fillStyle = turretColor;
+  ctx.fillRect(x + getScaledSize(15), y, getScaledSize(30), getScaledSize(30));
+  
+  // Cannon
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x + getScaledSize(27), y - getScaledSize(20), getScaledSize(6), getScaledSize(20));
+  
+  // Wheels
+  ctx.fillStyle = '#222';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(x + getScaledSize(15) + i * getScaledSize(15), y + getScaledSize(50), getScaledSize(8), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.restore();
+}
+
+function drawSupportTank(x, y, color = CONFIG.colors.supportTank.main, turretColor = CONFIG.colors.supportTank.turret, hp, maxHp) {
+  ctx.save();
+  
+  // Draw health bar if hp and maxHp are provided
+  if (typeof hp === 'number' && typeof maxHp === 'number') {
+    ctx.strokeStyle = CONFIG.colors.ui.text;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x + 3, y - 12, 30, 5);
+    // Background health bar
+    ctx.fillStyle = CONFIG.colors.ui.health.low;
+    ctx.fillRect(x + 3, y - 12, 30, 5);
+    // Change health bar color based on percentage
+    let percent = Math.max(0, Math.min(1, hp / maxHp));
+    if (percent > 0.6) ctx.fillStyle = CONFIG.colors.ui.health.high;
+    else if (percent > 0.3) ctx.fillStyle = CONFIG.colors.ui.health.medium;
+    else ctx.fillStyle = CONFIG.colors.ui.health.low;
+    ctx.fillRect(x + 3, y - 12, 30 * percent, 5);
+  }
+  
+  // Tank body (60% size)
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y + 12, 36, 18);
+  
+  // Turret (60% size)
+  ctx.fillStyle = turretColor;
+  ctx.fillRect(x + 9, y, 18, 18);
+  
+  // Cannon (60% size)
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x + 16, y - 12, 4, 12);
+  
+  // Wheels (60% size)
+  ctx.fillStyle = '#222';
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(x + 9 + i * 9, y + 30, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.restore();
+}
+
+function drawBullet(bullet, color = CONFIG.colors.bullet) {
+  // If it's a laser, draw laser beam instead of round bullet
+  if (bullet.isLaser) {
+    drawLaser(bullet);
+  } else {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    const bulletRadius = getScaledSize(CONFIG.bullets.radius);
+    ctx.arc(bullet.x, bullet.y, bulletRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawLaser(bullet) {
+  ctx.save();
+  
+  // Calculate starting point from tank
+  const startX = tank.x + 30; // Center of tank
+  const startY = tank.y + 10; // Front of tank
+  
+  // Calculate end point of laser beam (shoot straight up)
+  const laserLength = canvas.height + 100; // Laser length to end of screen
+  const endX = startX;
+  const endY = startY - laserLength;
+  
+  // Draw outer laser beam (dark blue with glow effect)
+  ctx.strokeStyle = CONFIG.colors.laser.outer;
+  ctx.lineWidth = 12;
+  ctx.lineCap = 'round';
+  ctx.shadowColor = CONFIG.colors.laser.outer;
+  ctx.shadowBlur = 20;
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  
+  // Draw middle laser beam (bright blue)
+  ctx.strokeStyle = CONFIG.colors.laser.middle;
+  ctx.lineWidth = 8;
+  ctx.shadowBlur = 15;
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  
+  // Draw laser core (white)
+  ctx.strokeStyle = CONFIG.colors.laser.core;
+  ctx.lineWidth = 4;
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+  ctx.lineTo(endX, endY);
+  ctx.stroke();
+  
+  // Draw sparkle effects along the laser beam
+  for (let i = 0; i < 8; i++) {
+    const sparkY = startY - (i * 80 + Math.random() * 60);
+    const sparkX = startX + (Math.random() - 0.5) * 20;
+    
+    ctx.fillStyle = CONFIG.colors.laser.core;
+    ctx.shadowColor = CONFIG.colors.laser.middle;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(sparkX, sparkY, 1 + Math.random() * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  // Draw energy effect at gun tip
+  ctx.fillStyle = CONFIG.colors.laser.core;
+  ctx.shadowColor = CONFIG.colors.laser.middle;
+  ctx.shadowBlur = 15;
+  ctx.beginPath();
+  ctx.arc(startX, startY, 8, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.restore();
+}
+
+function drawExplosion(x, y) {
+  ctx.save();
+  const explosionCenterX = getScaledSize(30);
+  const explosionCenterY = getScaledSize(35);
+  const outerRadius = getScaledSize(25);
+  const innerRadius = getScaledSize(12);
+  
+  ctx.beginPath();
+  ctx.arc(x + explosionCenterX, y + explosionCenterY, outerRadius, 0, Math.PI * 2);
+  ctx.fillStyle = 'orange';
+  ctx.globalAlpha = 0.7;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + explosionCenterX, y + explosionCenterY, innerRadius, 0, Math.PI * 2);
+  ctx.fillStyle = 'yellow';
+  ctx.globalAlpha = 0.9;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 // Export functions and variables that need to be accessed globally
@@ -595,10 +913,17 @@ function updateKeyStates() {
   keys['ArrowRight'] = joystick.dx > deadzone;
 }
 
-// Game functions (shoot, useFuel, etc.) will be implemented in the next part
+// Game functions
 function shoot() {
   if (tank.shootCooldown <= 0) {
-    // Shooting logic here
+    bullets.push({
+      x: tank.x + 30,
+      y: tank.y,
+      worldX: tank.worldX + 30,
+      worldY: tank.worldY,
+      dx: 0,
+      dy: -CONFIG.bullets.speed
+    });
     tank.shootCooldown = tank.shootInterval;
   }
 }
@@ -834,12 +1159,141 @@ function gameLoop() {
   }
 }
 
-// Placeholder for update function - this will contain the main game logic
+// Main game update function - simplified for now
 function update() {
-  // Main game update logic will be implemented here
-  // This is a simplified version for now
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Draw game elements
-  // ... (game rendering logic)
+  // Draw terrain and decorations
+  drawTerrain();
+  drawDecorations();
+  
+  // Update tank movement
+  if (keys['ArrowUp']) tank.y -= tank.speed;
+  if (keys['ArrowDown']) tank.y += tank.speed;
+  if (keys['ArrowLeft']) tank.x -= tank.speed;
+  if (keys['ArrowRight']) tank.x += tank.speed;
+  
+  // Update shooting
+  if (keys[' '] || keys['Space']) {
+    shoot();
+  }
+  
+  // Update cooldowns
+  if (tank.shootCooldown > 0) tank.shootCooldown--;
+  
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    let bullet = bullets[i];
+    bullet.y += bullet.dy;
+    bullet.x += bullet.dx;
+    
+    // Remove bullets that are off screen
+    if (bullet.y < -10 || bullet.y > canvas.height + 10 || 
+        bullet.x < -10 || bullet.x > canvas.width + 10) {
+      bullets.splice(i, 1);
+      continue;
+    }
+    
+    drawBullet(bullet);
+  }
+  
+  // Draw tank
+  if (tank.hp > 0) {
+    drawTank(tank.x, tank.y, CONFIG.colors.tank.main, CONFIG.colors.tank.turret, false, tank.hp, tank.maxHp, tank.angle, tank.turretAngle);
+  }
+  
+  // Draw support tank
+  if (supportTank.hp > 0) {
+    drawSupportTank(supportTank.x, supportTank.y, CONFIG.colors.supportTank.main, CONFIG.colors.supportTank.turret, supportTank.hp, supportTank.maxHp);
+  }
+  
+  // Display UI
+  ctx.save();
+  ctx.font = getScaledFont(CONFIG.ui.baseFontSize, 'Arial', 'bold');
+  ctx.fillStyle = CONFIG.colors.ui.text;
+  ctx.shadowColor = CONFIG.colors.ui.shadow;
+  ctx.shadowBlur = getScaledSize(3);
+  const uiMargin = getScaledSize(CONFIG.ui.margin);
+  const uiLineHeight = getScaledSize(CONFIG.ui.lineHeight);
+  
+  ctx.fillText(`HP: ${tank.hp}/${tank.maxHp}`, uiMargin, uiLineHeight);
+  ctx.fillText(`Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, uiMargin, uiLineHeight * 2);
+  
+  // Display fuel cooldown
+  if (!fuelSystem.isReady) {
+    let cooldownSeconds = Math.ceil(fuelSystem.currentCooldown / 1000);
+    ctx.fillStyle = CONFIG.colors.tank.main;
+    ctx.fillText(`⛽ Nhiên liệu: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 3);
+  } else {
+    ctx.fillStyle = CONFIG.colors.tank.main;
+    ctx.fillText(`⛽ Nhiên liệu: Sẵn sàng`, uiMargin, uiLineHeight * 3);
+  }
+  
+  // Display messages
+  if (fuelMessage.time > 0) {
+    ctx.fillStyle = CONFIG.colors.tank.main;
+    ctx.fillText(fuelMessage.text, uiMargin, uiLineHeight * 4);
+    fuelMessage.time--;
+  }
+  
+  if (bulletTimeMessage.time > 0) {
+    ctx.fillStyle = CONFIG.colors.supportTank.main;
+    ctx.fillText(bulletTimeMessage.text, uiMargin, uiLineHeight * 8);
+    bulletTimeMessage.time--;
+  }
+  
+  if (generalMessage.time > 0) {
+    ctx.fillStyle = CONFIG.colors.bullet;
+    ctx.fillText(generalMessage.text, uiMargin, uiLineHeight * 9);
+    generalMessage.time--;
+  }
+  
+  // Display auto aim and auto shoot status
+  ctx.fillStyle = tank.autoAim ? CONFIG.colors.ui.health.high : CONFIG.colors.ui.health.low;
+  ctx.fillText(`🎯 Tự động nhắm: ${tank.autoAim ? 'BẬT' : 'TẮT'} (A)`, uiMargin, uiLineHeight * 10);
+  
+  ctx.fillStyle = tank.autoShoot ? CONFIG.colors.ui.health.high : CONFIG.colors.ui.health.low;
+  ctx.fillText(`🔫 Bắn tự động: ${tank.autoShoot ? 'BẬT' : 'TẮT'} (Z)`, uiMargin, uiLineHeight * 11);
+  
+  ctx.restore();
+  
+  // Update cooldowns
+  if (!fuelSystem.isReady) {
+    fuelSystem.currentCooldown -= 16.67; // Assuming 60 FPS
+    if (fuelSystem.currentCooldown <= 0) {
+      fuelSystem.isReady = true;
+      updateFuelButton();
+    }
+  }
+  
+  if (!electricWaveSystem.isReady) {
+    electricWaveSystem.currentCooldown -= 16.67;
+    if (electricWaveSystem.currentCooldown <= 0) {
+      electricWaveSystem.isReady = true;
+      updateElectricWaveButton();
+    }
+  }
+  
+  if (!missileSystem.isReady) {
+    missileSystem.currentCooldown -= 16.67;
+    if (missileSystem.currentCooldown <= 0) {
+      missileSystem.isReady = true;
+      updateMissileButton();
+    }
+  }
+  
+  if (bulletTimeSystem.isActive) {
+    bulletTimeSystem.currentDuration -= 16.67;
+    if (bulletTimeSystem.currentDuration <= 0) {
+      bulletTimeSystem.isActive = false;
+      bulletTimeSystem.currentCooldown = bulletTimeSystem.cooldownTime;
+      updateBulletTimeButton();
+    }
+  } else if (!bulletTimeSystem.isReady) {
+    bulletTimeSystem.currentCooldown -= 16.67;
+    if (bulletTimeSystem.currentCooldown <= 0) {
+      bulletTimeSystem.isReady = true;
+      updateBulletTimeButton();
+    }
+  }
 }
