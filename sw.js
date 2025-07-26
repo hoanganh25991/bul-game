@@ -3,8 +3,11 @@ self.addEventListener('install', function(e) {
     caches.open('tankgame-v1').then(function(cache) {
       // Cache files that actually exist
       const urlsToCache = [
+        './',
+        './index.html',
         './tank.html',
         './game.js',
+        './config.js',
         './styles.css',
         './manifest.json',
         './my-love-don-t-let-love-fade.mp3',
