@@ -1,0 +1,483 @@
+/* Tank Game Styles */
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #222;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+.game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+canvas {
+  background: #444;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Start Button */
+#startBtn {
+  position: absolute;
+  z-index: 100;
+  padding: 20px 40px;
+  font-size: 24px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#startBtn:hover {
+  background: #45a049;
+  transform: scale(1.05);
+}
+
+#startBtn:active {
+  transform: scale(0.95);
+}
+
+/* Instructions */
+#instructions {
+  position: absolute;
+  z-index: 99;
+  color: white;
+  text-align: center;
+  top: 60%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+#instructions p {
+  margin: 8px 0;
+}
+
+#instructions strong {
+  color: #ffeb3b;
+}
+
+/* Canvas */
+#gameCanvas {
+  display: none;
+}
+
+/* Joystick - góc trái */
+.joystick-container {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  display: none;
+  z-index: 10;
+  width: 150px;
+  height: 150px;
+  touch-action: none;
+}
+
+.joystick-base {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+}
+
+.joystick-handle {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Nút bắn và bình nhiên liệu - góc phải */
+.shoot-controls {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  display: none;
+  z-index: 10;
+  flex-direction: row;
+  gap: 20px;
+  align-items: center;
+}
+
+/* Base Button Styles */
+.game-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.1s;
+  touch-action: manipulation;
+  backdrop-filter: blur(5px);
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+  border: 3px solid;
+}
+
+.game-btn:hover {
+  transform: scale(1.1);
+}
+
+.game-btn:active {
+  transform: scale(0.9);
+}
+
+.game-btn.disabled {
+  background: rgba(128, 128, 128, 0.3) !important;
+  border-color: #808080 !important;
+  color: #808080 !important;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.game-btn.disabled:hover {
+  transform: none !important;
+  background: rgba(128, 128, 128, 0.3) !important;
+  box-shadow: none !important;
+}
+
+/* Shoot Button */
+.shoot-btn {
+  background: rgba(255, 235, 59, 0.3);
+  border-color: #ffeb3b;
+  color: #ffeb3b;
+  margin-bottom: 0;
+}
+
+.shoot-btn:hover {
+  background: rgba(255, 235, 59, 0.5);
+}
+
+.shoot-btn:active {
+  background: rgba(255, 235, 59, 0.7);
+}
+
+.shoot-btn img {
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+
+/* Fuel Button */
+.fuel-btn {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: #4caf50;
+  color: #4caf50;
+}
+
+.fuel-btn:hover {
+  background: rgba(76, 175, 80, 0.5);
+}
+
+.fuel-btn:active {
+  background: rgba(76, 175, 80, 0.7);
+}
+
+/* Electric Wave Button */
+.electric-wave-btn {
+  background: rgba(138, 43, 226, 0.3);
+  border-color: #8a2be2;
+  color: #8a2be2;
+}
+
+.electric-wave-btn:hover {
+  background: rgba(138, 43, 226, 0.5);
+  box-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
+}
+
+.electric-wave-btn:active {
+  background: rgba(138, 43, 226, 0.7);
+}
+
+/* Missile Button */
+.missile-btn {
+  background: rgba(255, 87, 34, 0.3);
+  border-color: #ff5722;
+  color: #ff5722;
+}
+
+.missile-btn:hover {
+  background: rgba(255, 87, 34, 0.5);
+  box-shadow: 0 0 20px rgba(255, 87, 34, 0.6);
+}
+
+.missile-btn:active {
+  background: rgba(255, 87, 34, 0.7);
+}
+
+/* Bullet Time Button */
+.bullet-time-btn {
+  background: rgba(33, 150, 243, 0.3);
+  border-color: #2196f3;
+  color: #2196f3;
+}
+
+.bullet-time-btn:hover {
+  background: rgba(33, 150, 243, 0.5);
+  box-shadow: 0 0 20px rgba(33, 150, 243, 0.6);
+}
+
+.bullet-time-btn:active {
+  background: rgba(33, 150, 243, 0.7);
+}
+
+.bullet-time-btn.active {
+  background: rgba(33, 150, 243, 0.8);
+  box-shadow: 0 0 30px rgba(33, 150, 243, 1);
+  animation: bulletTimePulse 1s infinite;
+}
+
+/* Animations */
+@keyframes bulletTimePulse {
+  0%, 100% { 
+    box-shadow: 0 0 30px rgba(33, 150, 243, 1); 
+  }
+  50% { 
+    box-shadow: 0 0 50px rgba(33, 150, 243, 0.8); 
+  }
+}
+
+@keyframes cooldownSpin {
+  from { 
+    transform: rotate(0deg); 
+  }
+  to { 
+    transform: rotate(360deg); 
+  }
+}
+
+/* Cooldown Effects */
+.missile-btn::after,
+.electric-wave-btn::after,
+.bullet-time-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.missile-btn::after {
+  background: conic-gradient(transparent 0deg, rgba(255, 87, 34, 0.8) 360deg);
+}
+
+.electric-wave-btn::after {
+  background: conic-gradient(transparent 0deg, rgba(138, 43, 226, 0.8) 360deg);
+}
+
+.bullet-time-btn::after {
+  background: conic-gradient(transparent 0deg, rgba(33, 150, 243, 0.8) 360deg);
+}
+
+.missile-btn.cooldown::after,
+.electric-wave-btn.cooldown::after,
+.bullet-time-btn.cooldown::after {
+  opacity: 1;
+  animation: cooldownSpin 0.1s linear;
+}
+
+/* Responsive Design */
+
+/* Tablet */
+@media (max-width: 768px) {
+  .joystick-container {
+    width: 130px;
+    height: 130px;
+    bottom: 20px;
+    left: 20px;
+  }
+  
+  .joystick-handle {
+    width: 50px;
+    height: 50px;
+  }
+  
+  .shoot-controls {
+    bottom: 20px;
+    right: 20px;
+    gap: 15px;
+  }
+  
+  .game-btn {
+    width: 70px;
+    height: 70px;
+    font-size: 28px;
+  }
+  
+  .shoot-btn img {
+    width: 24px;
+    height: 24px;
+  }
+  
+  #startBtn {
+    padding: 15px 30px;
+    font-size: 20px;
+  }
+  
+  #instructions {
+    font-size: 16px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .joystick-container {
+    width: 120px;
+    height: 120px;
+    bottom: 15px;
+    left: 15px;
+  }
+  
+  .joystick-handle {
+    width: 45px;
+    height: 45px;
+  }
+  
+  .shoot-controls {
+    bottom: 15px;
+    right: 15px;
+    gap: 12px;
+  }
+  
+  .game-btn {
+    width: 65px;
+    height: 65px;
+    font-size: 24px;
+  }
+  
+  #startBtn {
+    padding: 12px 24px;
+    font-size: 18px;
+  }
+  
+  #instructions {
+    font-size: 14px;
+    top: 55%;
+  }
+}
+
+/* Small Mobile */
+@media (max-width: 360px) {
+  .joystick-container {
+    width: 100px;
+    height: 100px;
+    bottom: 10px;
+    left: 10px;
+  }
+  
+  .joystick-handle {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .shoot-controls {
+    bottom: 10px;
+    right: 10px;
+    gap: 10px;
+  }
+  
+  .game-btn {
+    width: 55px;
+    height: 55px;
+    font-size: 20px;
+  }
+  
+  #startBtn {
+    padding: 10px 20px;
+    font-size: 16px;
+  }
+  
+  #instructions {
+    font-size: 12px;
+    top: 50%;
+  }
+  
+  #instructions p {
+    margin: 4px 0;
+  }
+}
+
+/* High DPI Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  canvas {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #111;
+  }
+  
+  canvas {
+    background: #333;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .game-btn,
+  #startBtn,
+  .joystick-handle {
+    transition: none;
+  }
+  
+  .bullet-time-btn.active {
+    animation: none;
+  }
+  
+  .missile-btn.cooldown::after,
+  .electric-wave-btn.cooldown::after,
+  .bullet-time-btn.cooldown::after {
+    animation: none;
+  }
+}
