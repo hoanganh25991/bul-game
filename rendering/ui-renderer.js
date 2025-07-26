@@ -110,13 +110,9 @@ export class UIRenderer {
   }
 
   renderAutoFeatures(tankStats, uiMargin, uiLineHeight) {
-    // Display auto aim status
-    this.ctx.fillStyle = tankStats.autoAim ? CONFIG.colors.ui.health.high : CONFIG.colors.ui.health.low;
-    this.ctx.fillText(`🎯 Tự động nhắm: ${tankStats.autoAim ? 'BẬT' : 'TẮT'} (A)`, uiMargin, uiLineHeight * 10);
-    
     // Display auto shoot status
     this.ctx.fillStyle = tankStats.autoShoot ? CONFIG.colors.ui.health.high : CONFIG.colors.ui.health.low;
-    this.ctx.fillText(`🔫 Bắn tự động: ${tankStats.autoShoot ? 'BẬT' : 'TẮT'} (Z)`, uiMargin, uiLineHeight * 11);
+    this.ctx.fillText(`🔫 Bắn tự động: ${tankStats.autoShoot ? 'BẬT' : 'TẮT'} (Z)`, uiMargin, uiLineHeight * 10);
   }
 
   renderGameOverScreen(isVictory, victorySystem) {

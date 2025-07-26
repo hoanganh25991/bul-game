@@ -46,7 +46,7 @@ export class Renderer {
     this.drawWeaponEffects(weapons);
     
     // Draw auto-aim indicators
-    if (tank.autoAim && CONFIG.tank.autoAimVisualIndicators) {
+    if (CONFIG.tank.autoAim && CONFIG.tank.autoAimVisualIndicators) {
       this.drawAutoAimIndicators(tank, enemies);
     }
   }

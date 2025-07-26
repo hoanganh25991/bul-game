@@ -104,8 +104,8 @@ export const CONFIG = {
     minButtonSize: 50,
     joystickSize: 130,
     joystickHandleSize: 50,
-    margin: 20,
-    lineHeight: 20
+    margin: 25,
+    lineHeight: 25
   },
 
   // Colors
@@ -156,7 +156,7 @@ export const CONFIG = {
       electricWave: ['e', 'E'],
       missile: ['1'],
       bulletTime: ['t', 'T'],
-      autoAim: ['a', 'A'],
+
       autoShoot: ['z', 'Z'],
       start: ['Enter', ' ']
     }

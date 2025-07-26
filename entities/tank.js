@@ -14,7 +14,7 @@ export class Tank {
     this.shootInterval = CONFIG.tank.shootInterval;
     this.angle = -Math.PI / 2;
     this.turretAngle = -Math.PI / 2;
-    this.autoAim = CONFIG.tank.autoAim;
+
     this.canShootWhileMoving = CONFIG.tank.canShootWhileMoving;
     this.autoShoot = CONFIG.tank.autoShoot;
     this.scaleFactor = scaleFactor;
@@ -129,7 +129,7 @@ export class Tank {
       let dy = -CONFIG.bullets.speed;
       
       // Auto-aim functionality
-      if (this.autoAim && window.gameCore?.enemies) {
+      if (CONFIG.tank.autoAim && window.gameCore?.enemies) {
         const nearestEnemy = this.findNearestEnemy(window.gameCore.enemies.getEnemies());
         if (nearestEnemy) {
           const targetPos = this.calculatePredictiveAim(gunCenterX, gunTipY, nearestEnemy, CONFIG.bullets.speed);
@@ -175,7 +175,7 @@ export class Tank {
       let dy = -CONFIG.bullets.speed;
       
       // Auto-aim functionality for support tank
-      if (this.autoAim && window.gameCore?.enemies) {
+      if (CONFIG.tank.autoAim && window.gameCore?.enemies) {
         const nearestEnemy = this.findNearestEnemyForSupport(window.gameCore.enemies.getEnemies());
         if (nearestEnemy) {
           const targetPos = this.calculatePredictiveAim(gunCenterX, gunTipY, nearestEnemy, CONFIG.bullets.speed);
@@ -289,9 +289,7 @@ export class Tank {
     }
   }
 
-  toggleAutoAim() {
-    this.autoAim = !this.autoAim;
-  }
+
 
   toggleAutoShoot() {
     this.autoShoot = !this.autoShoot;
@@ -329,7 +327,6 @@ export class Tank {
     return {
       hp: this.hp,
       maxHp: this.maxHp,
-      autoAim: this.autoAim,
       autoShoot: this.autoShoot
     };
   }

@@ -37,12 +37,7 @@ export class InputManager {
         window.gameCore.weapons.useBulletTime();
       }
       
-      // Auto aim toggle
-      if (CONFIG.controls.keys.autoAim.includes(e.key)) {
-        window.gameCore.tank.toggleAutoAim();
-        const message = window.gameCore.tank.autoAim ? "🎯 Tự động nhắm: BẬT" : "🎯 Tự động nhắm: TẮT";
-        window.gameCore.showMessage(message);
-      }
+
       
       // Auto shoot toggle
       if (CONFIG.controls.keys.autoShoot.includes(e.key)) {
