@@ -326,7 +326,7 @@ export class GameCore {
       this.updateTankScreenPosition();
       
       // Update tank movement
-      this.tank.update(this.inputManager.keys, this.cameraSystem);
+      this.tank.update(this.inputManager, this.cameraSystem);
       
       // Update enemies
       this.enemies.update(this.tank, this.cameraSystem, this.frameCount, this.enemyIdCounter);
@@ -369,19 +369,17 @@ export class GameCore {
         this.inputManager.keys['k'] = false;
         this.inputManager.keys['K'] = false;
       }
-      if (this.inputManager.keys['w'] || this.inputManager.keys['W']) {
-        // Win game for testing victory
+      if (this.inputManager.keys['9']) {
+        // Win game for testing victory (changed from W to 9 to avoid conflict with movement)
         this.victorySystem.enemiesKilled = this.victorySystem.targetKills;
-        this.inputManager.keys['w'] = false;
-        this.inputManager.keys['W'] = false;
+        this.inputManager.keys['9'] = false;
       }
-      if (this.inputManager.keys['d'] || this.inputManager.keys['D']) {
-        // Damage tank for testing fuel system
+      if (this.inputManager.keys['8']) {
+        // Damage tank for testing fuel system (changed from D to 8 to avoid conflict with movement)
         this.tank.takeDamage(2);
         this.tank.supportTank.hp = Math.max(0, this.tank.supportTank.hp - 1);
         console.log('Debug: Damaged tanks - Main HP:', this.tank.hp, 'Support HP:', this.tank.supportTank.hp);
-        this.inputManager.keys['d'] = false;
-        this.inputManager.keys['D'] = false;
+        this.inputManager.keys['8'] = false;
       }
       
       this.frameCount++;

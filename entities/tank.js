@@ -55,14 +55,14 @@ export class Tank {
     this.y = y;
   }
 
-  update(keys, cameraSystem) {
+  update(inputManager, cameraSystem) {
     // Update tank movement in world coordinates
-    const movement = this.getMovementFromKeys(keys);
+    const movement = inputManager.getMovementVector();
     this.worldX += movement.dx * this.speed;
     this.worldY += movement.dy * this.speed;
 
     // Update shooting
-    if (keys[' '] || keys['Space']) {
+    if (inputManager.isShootKeyPressed()) {
       this.shoot();
     }
     
@@ -83,17 +83,7 @@ export class Tank {
     this.updateSupportTank(cameraSystem);
   }
 
-  getMovementFromKeys(keys) {
-    let dx = 0;
-    let dy = 0;
-    
-    if (keys['ArrowUp']) dy -= 1;
-    if (keys['ArrowDown']) dy += 1;
-    if (keys['ArrowLeft']) dx -= 1;
-    if (keys['ArrowRight']) dx += 1;
-    
-    return { dx, dy };
-  }
+
 
   updateSupportTank(cameraSystem) {
     // Update support tank position to follow main tank
