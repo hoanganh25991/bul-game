@@ -155,15 +155,15 @@ function initializeGameSystems() {
 }
 
 function initializeGameObjects() {
-  // Initialize tank
+  // Initialize tank - will be positioned properly after canvas is set up
   tank = {
-    x: window.innerWidth/2 - 30,
-    y: window.innerHeight/2 - 30,
+    x: 0, // Will be set correctly in positionTank()
+    y: 0, // Will be set correctly in positionTank()
     speed: CONFIG.tank.speed,
     hp: CONFIG.tank.hp,
     maxHp: CONFIG.tank.maxHp,
-    worldX: window.innerWidth/2 - 30,
-    worldY: window.innerHeight/2 - 30,
+    worldX: 0,
+    worldY: 0,
     shootCooldown: 0,
     shootInterval: CONFIG.tank.shootInterval,
     angle: -Math.PI / 2,
@@ -189,6 +189,25 @@ function initializeGameObjects() {
   };
 
   updateControlsScale();
+  
+  // Position tank correctly after canvas is set up
+  positionTank();
+}
+
+function positionTank() {
+  // Center tank on screen with proper offset for tank size (60x70 pixels)
+  // Use display dimensions, not canvas.width/height which includes devicePixelRatio
+  const displayWidth = window.innerWidth;
+  const displayHeight = window.innerHeight;
+  const tankWidth = 60;
+  const tankHeight = 70;
+  
+  tank.x = (displayWidth / 2) - (tankWidth / 2);
+  tank.y = (displayHeight / 2) - (tankHeight / 2);
+  tank.worldX = tank.x;
+  tank.worldY = tank.y;
+  
+  // Tank is now properly centered on all devices
 }
 
 function initializeJoystick() {
@@ -277,9 +296,8 @@ function updateControlsScale() {
 function handleResize() {
   resizeCanvas();
   if (gameStarted && tank) {
-    // Adjust tank position to maintain ratio
-    tank.x = Math.min(tank.x, window.innerWidth - 60);
-    tank.y = Math.min(tank.y, window.innerHeight - 60);
+    // Re-center tank on screen resize
+    positionTank();
   }
 }
 
@@ -753,6 +771,9 @@ function startGame(e) {
   // Ensure canvas fullscreen
   resizeCanvas();
   
+  // Position tank correctly after canvas resize
+  positionTank();
+  
   // Initialize world system
   initWorldSystem();
   
@@ -962,7 +983,6 @@ function useFuel() {
 }
 
 function useElectricWave() {
-  console.log('Electric wave clicked! Ready:', electricWaveSystem.isReady);
   if (!electricWaveSystem.isReady) return;
   
   // Create new electric wave
@@ -978,8 +998,6 @@ function useElectricWave() {
     opacity: 1,
     hitEnemies: []
   });
-  
-  console.log('Electric wave created!');
   
   // Start cooldown
   electricWaveSystem.isReady = false;
@@ -1100,10 +1118,9 @@ function updateBulletTimeButton() {
 function resetGame() {
   // Reset game variables
   tank.hp = tank.maxHp;
-  tank.x = canvas.width/2 - 30;
-  tank.y = canvas.height - 120;
-  if (typeof tank.worldX !== 'undefined') tank.worldX = 0;
-  if (typeof tank.worldY !== 'undefined') tank.worldY = 0;
+  
+  // Re-center tank properly
+  positionTank();
   bullets = [];
   enemyBullets = [];
   enemies = [];
@@ -1163,26 +1180,28 @@ function resetGame() {
 function spawnEnemies() {
   // Spawn enemies based on frame count
   if (frameCount % CONFIG.enemies.spawnInterval === 0 && frameCount > 0) {
-    // Random spawn position on edges
+    // Random spawn position on edges using display dimensions
+    const displayWidth = window.innerWidth;
+    const displayHeight = window.innerHeight;
     let x, y;
     let edge = Math.floor(Math.random() * 4);
     
     switch (edge) {
       case 0: // Top
-        x = Math.random() * canvas.width;
+        x = Math.random() * displayWidth;
         y = -60;
         break;
       case 1: // Right
-        x = canvas.width + 60;
-        y = Math.random() * canvas.height;
+        x = displayWidth + 60;
+        y = Math.random() * displayHeight;
         break;
       case 2: // Bottom
-        x = Math.random() * canvas.width;
-        y = canvas.height + 60;
+        x = Math.random() * displayWidth;
+        y = displayHeight + 60;
         break;
       case 3: // Left
         x = -60;
-        y = Math.random() * canvas.height;
+        y = Math.random() * displayHeight;
         break;
     }
     
@@ -1195,7 +1214,7 @@ function spawnEnemies() {
       speed: CONFIG.enemies.speed
     });
     
-    console.log(`Enemy spawned! Total enemies: ${enemies.length}`);
+    // Enemy spawned successfully
   }
   
   frameCount++;
@@ -1312,8 +1331,8 @@ function updateMissiles() {
     }
     
     // Remove if off screen
-    if (missile.x < -100 || missile.x > canvas.width + 100 || 
-        missile.y < -100 || missile.y > canvas.height + 100) {
+    if (missile.x < -100 || missile.x > window.innerWidth + 100 || 
+        missile.y < -100 || missile.y > window.innerHeight + 100) {
       missileSystem.missiles.splice(i, 1);
       continue;
     }
@@ -1431,8 +1450,8 @@ function update() {
     bullet.x += bullet.dx;
     
     // Remove bullets that are off screen
-    if (bullet.y < -10 || bullet.y > canvas.height + 10 || 
-        bullet.x < -10 || bullet.x > canvas.width + 10) {
+    if (bullet.y < -10 || bullet.y > window.innerHeight + 10 || 
+        bullet.x < -10 || bullet.x > window.innerWidth + 10) {
       bullets.splice(i, 1);
       continue;
     }
