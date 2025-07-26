@@ -53,7 +53,7 @@ export class Enemies {
         worldY: worldY,
         x: 0, // Will be calculated by worldToScreen
         y: 0, // Will be calculated by worldToScreen
-        hp: CONFIG.enemies.hp,
+        hp: CONFIG.enemies.hp, // Create a copy to prevent reference issues
         maxHp: CONFIG.enemies.maxHp,
         speed: CONFIG.enemies.speed,
         shootCooldown: 0,

@@ -39,6 +39,7 @@ export class Bullets {
           if (enemy.hp <= 0) {
             enemies.splice(j, 1);
             victorySystem.enemiesKilled++;
+            console.log('Enemy killed by main bullet! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
           }
           break;
         }
@@ -80,6 +81,7 @@ export class Bullets {
           if (enemy.hp <= 0) {
             enemies.splice(j, 1);
             victorySystem.enemiesKilled++;
+            console.log('Enemy killed by support bullet! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
           }
           break;
         }

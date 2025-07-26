@@ -99,6 +99,7 @@ export class Weapons {
           if (enemy.hp <= 0) {
             enemies.splice(j, 1);
             victorySystem.enemiesKilled++;
+            console.log('Enemy killed by electric wave! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
           }
         }
       }
@@ -195,6 +196,7 @@ export class Weapons {
         if (enemy.hp <= 0) {
           enemies.splice(j, 1);
           victorySystem.enemiesKilled++;
+          console.log('Enemy killed by missile! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
         }
       }
     }

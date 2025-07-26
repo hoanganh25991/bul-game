@@ -314,7 +314,9 @@ export class GameCore {
       }
       
       // Check if victory condition is met
-      if (this.victorySystem.enemiesKilled >= this.victorySystem.targetKills) {
+      if (this.victorySystem.enemiesKilled >= this.victorySystem.targetKills && !this.victorySystem.gameWon) {
+        console.log('Victory condition met! Enemies killed:', this.victorySystem.enemiesKilled, 'Target:', this.victorySystem.targetKills);
+        this.victorySystem.gameWon = true;
         this.handleGameOver(true);
         return;
       }
