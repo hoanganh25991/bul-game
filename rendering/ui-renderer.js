@@ -119,33 +119,58 @@ export class UIRenderer {
     this.ctx.fillText(`🔫 Bắn tự động: ${tankStats.autoShoot ? 'BẬT' : 'TẮT'} (Z)`, uiMargin, uiLineHeight * 11);
   }
 
-  renderGameOverScreen(victorySystem) {
+  renderGameOverScreen(isVictory, victorySystem) {
     this.ctx.save();
     
     // Semi-transparent overlay
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     this.ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
-    
-    // Game over text
-    this.ctx.fillStyle = '#fff';
-    this.ctx.font = MathUtils.getScaledFont(48, 'Arial', 'bold', this.scaleFactor);
-    this.ctx.textAlign = 'center';
     
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
     
-    if (victorySystem.gameWon) {
-      this.ctx.fillText('CHIẾN THẮNG!', centerX, centerY - 50);
-      this.ctx.font = MathUtils.getScaledFont(24, 'Arial', 'normal', this.scaleFactor);
-      this.ctx.fillText(`Bạn đã tiêu diệt ${victorySystem.enemiesKilled} kẻ thù!`, centerX, centerY);
+    // Set text alignment
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    
+    if (isVictory) {
+      // Victory screen
+      this.ctx.fillStyle = '#4caf50';
+      this.ctx.font = MathUtils.getScaledFont(64, 'Arial', 'bold', this.scaleFactor);
+      this.ctx.fillText('🎉 CHIẾN THẮNG! 🎉', centerX, centerY - 80);
+      
+      this.ctx.fillStyle = '#fff';
+      this.ctx.font = MathUtils.getScaledFont(28, 'Arial', 'normal', this.scaleFactor);
+      this.ctx.fillText(`Bạn đã tiêu diệt thành công ${victorySystem.enemiesKilled} kẻ thù!`, centerX, centerY - 20);
+      
+      this.ctx.fillStyle = '#ffeb3b';
+      this.ctx.font = MathUtils.getScaledFont(24, 'Arial', 'bold', this.scaleFactor);
+      this.ctx.fillText('🏆 Xuất sắc! Bạn đã hoàn thành nhiệm vụ! 🏆', centerX, centerY + 20);
+      
     } else {
-      this.ctx.fillText('GAME OVER', centerX, centerY - 50);
+      // Game over screen
+      this.ctx.fillStyle = '#f44336';
+      this.ctx.font = MathUtils.getScaledFont(64, 'Arial', 'bold', this.scaleFactor);
+      this.ctx.fillText('💥 THẤT BẠI 💥', centerX, centerY - 80);
+      
+      this.ctx.fillStyle = '#fff';
+      this.ctx.font = MathUtils.getScaledFont(28, 'Arial', 'normal', this.scaleFactor);
+      this.ctx.fillText('Xe tăng của bạn đã bị phá hủy!', centerX, centerY - 20);
+      
+      this.ctx.fillStyle = '#ffeb3b';
       this.ctx.font = MathUtils.getScaledFont(24, 'Arial', 'normal', this.scaleFactor);
-      this.ctx.fillText(`Tiêu diệt được: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, centerX, centerY);
+      this.ctx.fillText(`Tiêu diệt được: ${victorySystem.enemiesKilled}/${victorySystem.targetKills} kẻ thù`, centerX, centerY + 20);
     }
     
-    this.ctx.font = MathUtils.getScaledFont(18, 'Arial', 'normal', this.scaleFactor);
-    this.ctx.fillText('Nhấn R để chơi lại', centerX, centerY + 50);
+    // Restart instructions
+    this.ctx.fillStyle = '#2196f3';
+    this.ctx.font = MathUtils.getScaledFont(22, 'Arial', 'bold', this.scaleFactor);
+    this.ctx.fillText('🔄 Nhấn R, Enter hoặc Space để chơi lại 🔄', centerX, centerY + 80);
+    
+    // Add a subtle border effect
+    this.ctx.strokeStyle = isVictory ? '#4caf50' : '#f44336';
+    this.ctx.lineWidth = 4;
+    this.ctx.strokeRect(50, centerY - 150, window.innerWidth - 100, 300);
     
     this.ctx.restore();
   }

@@ -77,6 +77,15 @@ export class JoystickController {
     }
   }
 
+  hideControls() {
+    if (this.joystickContainer) {
+      this.joystickContainer.style.display = 'none';
+    }
+    if (this.shootControls) {
+      this.shootControls.style.display = 'none';
+    }
+  }
+
   setupControls() {
     // Initialize joystick
     const baseRect = this.joystickBase.getBoundingClientRect();

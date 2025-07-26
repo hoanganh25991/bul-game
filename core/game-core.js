@@ -46,6 +46,13 @@ export class GameCore {
       gameWon: false
     };
 
+    // Game state management
+    this.gameState = {
+      isGameOver: false,
+      isVictory: false,
+      showGameOverScreen: false
+    };
+
     // Messages
     this.fuelMessage = { text: '', time: 0 };
     this.bulletTimeMessage = { text: '', time: 0 };
@@ -286,47 +293,116 @@ export class GameCore {
   update() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
-    // Update camera to follow tank smoothly
-    this.cameraSystem.update(this.tank.worldX, this.tank.worldY);
-    this.updateTankScreenPosition();
+    // Check for game over conditions
+    if (!this.gameState.isGameOver) {
+      // Check if tank is destroyed
+      if (this.tank.hp <= 0) {
+        this.handleGameOver(false);
+        return;
+      }
+      
+      // Check if victory condition is met
+      if (this.victorySystem.enemiesKilled >= this.victorySystem.targetKills) {
+        this.handleGameOver(true);
+        return;
+      }
+      
+      // Update camera to follow tank smoothly
+      this.cameraSystem.update(this.tank.worldX, this.tank.worldY);
+      this.updateTankScreenPosition();
+      
+      // Update tank movement
+      this.tank.update(this.inputManager.keys, this.cameraSystem);
+      
+      // Update enemies
+      this.enemies.update(this.tank, this.cameraSystem, this.frameCount, this.enemyIdCounter);
+      this.enemyIdCounter = this.enemies.getEnemyIdCounter();
+      
+      // Update bullets
+      this.bullets.update(this.enemies.getEnemies(), this.cameraSystem, this.victorySystem);
+      
+      // Update weapons
+      this.weapons.update(this.tank, this.enemies.getEnemies(), this.victorySystem);
+      
+      // Render everything
+      this.renderer.render(
+        this.worldSystem,
+        this.cameraSystem,
+        this.tank,
+        this.enemies.getEnemies(),
+        this.bullets,
+        this.weapons
+      );
+      
+      // Render UI
+      this.uiRenderer.render(
+        this.tank,
+        this.victorySystem,
+        this.weapons,
+        this.fuelMessage,
+        this.bulletTimeMessage,
+        this.generalMessage
+      );
+      
+      // Render effects
+      this.effectsRenderer.render(this.weapons.getEffects());
+      
+      this.frameCount++;
+    } else {
+      // Game is over, show game over screen
+      this.uiRenderer.renderGameOverScreen(this.gameState.isVictory, this.victorySystem);
+      
+      // Check for restart input
+      if (this.inputManager.keys['r'] || this.inputManager.keys['R'] || 
+          this.inputManager.keys['Enter'] || this.inputManager.keys[' ']) {
+        this.restartGame();
+      }
+    }
+  }
+
+  handleGameOver(isVictory) {
+    this.gameState.isGameOver = true;
+    this.gameState.isVictory = isVictory;
+    this.gameState.showGameOverScreen = true;
     
-    // Update tank movement
-    this.tank.update(this.inputManager.keys, this.cameraSystem);
+    // Stop background music
+    this.bgm.pause();
     
-    // Update enemies
-    this.enemies.update(this.tank, this.cameraSystem, this.frameCount, this.enemyIdCounter);
-    this.enemyIdCounter = this.enemies.getEnemyIdCounter();
+    // Hide controls
+    this.joystickController.hideControls();
     
-    // Update bullets
-    this.bullets.update(this.enemies.getEnemies(), this.cameraSystem, this.victorySystem);
+    console.log(isVictory ? 'Victory!' : 'Game Over!');
+  }
+
+  restartGame() {
+    // Reset game state
+    this.gameState.isGameOver = false;
+    this.gameState.isVictory = false;
+    this.gameState.showGameOverScreen = false;
     
-    // Update weapons
-    this.weapons.update(this.tank, this.enemies.getEnemies(), this.victorySystem);
+    // Reset game variables
+    this.tank.reset();
+    this.enemies.reset();
+    this.bullets.reset();
+    this.weapons.reset();
     
-    // Render everything
-    this.renderer.render(
-      this.worldSystem,
-      this.cameraSystem,
-      this.tank,
-      this.enemies.getEnemies(),
-      this.bullets,
-      this.weapons
-    );
+    // Re-center tank properly
+    this.positionTank();
     
-    // Render UI
-    this.uiRenderer.render(
-      this.tank,
-      this.victorySystem,
-      this.weapons,
-      this.fuelMessage,
-      this.bulletTimeMessage,
-      this.generalMessage
-    );
+    this.frameCount = 0;
+    this.enemyIdCounter = 0;
+    this.gameStarted = true;
     
-    // Render effects
-    this.effectsRenderer.render(this.weapons.getEffects());
+    // Reset victory system
+    this.victorySystem.enemiesKilled = 0;
+    this.victorySystem.gameWon = false;
     
-    this.frameCount++;
+    // Show controls again
+    this.joystickController.showControls();
+    
+    // Restart background music
+    this.bgm.currentTime = 0;
+    this.bgm.play();
   }
 
   resetGame() {
