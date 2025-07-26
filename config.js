@@ -16,7 +16,7 @@ export const CONFIG = {
     autoAim: true,
     canShootWhileMoving: true,
     autoShoot: false,
-    autoAimRange: 400, // Maximum range for auto-aim
+    autoAimRange: 1200, // Maximum range for auto-aim (3x increased from 400)
     autoAimPrediction: true, // Enable predictive aiming
     autoAimVisualIndicators: true, // Show targeting reticles and aim lines
     autoAimSmoothness: 0.8 // How smooth the turret rotation is (0-1)
