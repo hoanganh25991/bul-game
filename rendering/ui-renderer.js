@@ -165,7 +165,7 @@ export class UIRenderer {
     // Restart instructions
     this.ctx.fillStyle = '#2196f3';
     this.ctx.font = MathUtils.getScaledFont(22, 'Arial', 'bold', this.scaleFactor);
-    this.ctx.fillText('🔄 Nhấn R, Enter hoặc Space để chơi lại 🔄', centerX, centerY + 80);
+    this.ctx.fillText('🔄 Nhấn R, Enter, Space hoặc chạm màn hình để chơi lại 🔄', centerX, centerY + 80);
     
     // Add a subtle border effect
     this.ctx.strokeStyle = isVictory ? '#4caf50' : '#f44336';

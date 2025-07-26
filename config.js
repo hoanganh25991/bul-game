@@ -33,7 +33,8 @@ export const CONFIG = {
     speed: 10,
     supportSpeed: 8,
     enemySpeed: 5,
-    radius: 12
+    radius: 12,
+    damage: 1
   },
 
   // Enemy configuration

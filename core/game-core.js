@@ -75,11 +75,9 @@ export class GameCore {
     const startBtn = document.getElementById('startBtn');
     if (!startBtn) {
       console.error('Start button not found!');
-      alert('Lỗi: Không tìm thấy nút Bắt đầu!');
     }
     if (!this.canvas) {
       console.error('Canvas not found!');
-      alert('Lỗi: Không tìm thấy canvas!');
     }
   }
 
@@ -210,6 +208,20 @@ export class GameCore {
       }
     });
 
+    // Touch/click handler for game over screen restart
+    this.canvas.addEventListener('click', (e) => {
+      if (this.gameState.isGameOver) {
+        this.restartGame();
+      }
+    });
+
+    this.canvas.addEventListener('touchstart', (e) => {
+      if (this.gameState.isGameOver) {
+        e.preventDefault();
+        this.restartGame();
+      }
+    });
+
     // Fallback click handler
     setTimeout(() => {
       if (!this.gameStarted) {
@@ -272,7 +284,7 @@ export class GameCore {
     this.bgm.play().then(() => {
       // success
     }).catch(() => {
-      alert('Click anywhere to enable game music!');
+      console.log('Music autoplay blocked - will play on user interaction');
       document.body.addEventListener('click', function tryPlay() {
         this.bgm.play();
         document.body.removeEventListener('click', tryPlay);
