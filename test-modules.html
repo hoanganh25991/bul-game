@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module Test - Tank Shooter Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .module-status {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .loading { background: #5a5a2d; }
+        .status-indicator {
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+        .success .status-indicator { background: #4a8a4a; }
+        .error .status-indicator { background: #8a4a4a; }
+        .loading .status-indicator { background: #8a8a4a; }
+        h1 { color: #4a8a4a; }
+        h2 { color: #6a9a6a; margin-top: 30px; }
+        .summary {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 Tank Shooter Game - Module Loading Test</h1>
+    
+    <h2>📁 Core Systems</h2>
+    <div id="core-game-core" class="module-status loading">
+        <span>core/game-core.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="core-camera-system" class="module-status loading">
+        <span>core/camera-system.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="core-world-system" class="module-status loading">
+        <span>core/world-system.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+
+    <h2>🎮 Input Systems</h2>
+    <div id="input-input-manager" class="module-status loading">
+        <span>input/input-manager.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="input-joystick-controller" class="module-status loading">
+        <span>input/joystick-controller.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+
+    <h2>🚗 Game Entities</h2>
+    <div id="entities-tank" class="module-status loading">
+        <span>entities/tank.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="entities-enemies" class="module-status loading">
+        <span>entities/enemies.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="entities-bullets" class="module-status loading">
+        <span>entities/bullets.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="entities-weapons" class="module-status loading">
+        <span>entities/weapons.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+
+    <h2>🎨 Rendering Systems</h2>
+    <div id="rendering-renderer" class="module-status loading">
+        <span>rendering/renderer.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="rendering-ui-renderer" class="module-status loading">
+        <span>rendering/ui-renderer.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="rendering-effects-renderer" class="module-status loading">
+        <span>rendering/effects-renderer.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+
+    <h2>🔧 Utilities</h2>
+    <div id="utils-math-utils" class="module-status loading">
+        <span>utils/math-utils.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+    <div id="utils-performance" class="module-status loading">
+        <span>utils/performance.js</span>
+        <span class="status-indicator">LOADING</span>
+    </div>
+
+    <div class="summary">
+        <h2>📊 Summary</h2>
+        <p id="summary-text">Testing module loading...</p>
+        <p><strong>Total Modules:</strong> <span id="total-count">13</span></p>
+        <p><strong>Loaded Successfully:</strong> <span id="success-count">0</span></p>
+        <p><strong>Failed to Load:</strong> <span id="error-count">0</span></p>
+    </div>
+
+    <script type="module">
+        const modules = [
+            { id: 'core-game-core', path: './core/game-core.js' },
+            { id: 'core-camera-system', path: './core/camera-system.js' },
+            { id: 'core-world-system', path: './core/world-system.js' },
+            { id: 'input-input-manager', path: './input/input-manager.js' },
+            { id: 'input-joystick-controller', path: './input/joystick-controller.js' },
+            { id: 'entities-tank', path: './entities/tank.js' },
+            { id: 'entities-enemies', path: './entities/enemies.js' },
+            { id: 'entities-bullets', path: './entities/bullets.js' },
+            { id: 'entities-weapons', path: './entities/weapons.js' },
+            { id: 'rendering-renderer', path: './rendering/renderer.js' },
+            { id: 'rendering-ui-renderer', path: './rendering/ui-renderer.js' },
+            { id: 'rendering-effects-renderer', path: './rendering/effects-renderer.js' },
+            { id: 'utils-math-utils', path: './utils/math-utils.js' },
+            { id: 'utils-performance', path: './utils/performance.js' }
+        ];
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        function updateStatus(id, success, error = null) {
+            const element = document.getElementById(id);
+            const indicator = element.querySelector('.status-indicator');
+            
+            if (success) {
+                element.className = 'module-status success';
+                indicator.textContent = 'SUCCESS';
+                successCount++;
+            } else {
+                element.className = 'module-status error';
+                indicator.textContent = 'ERROR';
+                errorCount++;
+                console.error(`Failed to load ${id}:`, error);
+            }
+            
+            updateSummary();
+        }
+
+        function updateSummary() {
+            document.getElementById('success-count').textContent = successCount;
+            document.getElementById('error-count').textContent = errorCount;
+            
+            const total = modules.length;
+            const summaryText = document.getElementById('summary-text');
+            
+            if (successCount + errorCount === total) {
+                if (errorCount === 0) {
+                    summaryText.innerHTML = '✅ <strong>All modules loaded successfully!</strong> The modular architecture is working correctly.';
+                    summaryText.style.color = '#4a8a4a';
+                } else {
+                    summaryText.innerHTML = `⚠️ <strong>${errorCount} module(s) failed to load.</strong> Check the console for details.`;
+                    summaryText.style.color = '#8a8a4a';
+                }
+            }
+        }
+
+        // Test each module
+        async function testModules() {
+            for (const module of modules) {
+                try {
+                    await import(module.path);
+                    updateStatus(module.id, true);
+                } catch (error) {
+                    updateStatus(module.id, false, error);
+                }
+            }
+        }
+
+        // Start testing
+        testModules();
+    </script>
+</body>
+</html>

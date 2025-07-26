@@ -14,7 +14,26 @@ self.addEventListener('install', function(e) {
         './bullet.png',
         './icon-192.png',
         './icon-512.png',
-        './favicon.ico'
+        './favicon.ico',
+        // Core systems
+        './core/game-core.js',
+        './core/camera-system.js',
+        './core/world-system.js',
+        // Input systems
+        './input/input-manager.js',
+        './input/joystick-controller.js',
+        // Game entities
+        './entities/tank.js',
+        './entities/enemies.js',
+        './entities/bullets.js',
+        './entities/weapons.js',
+        // Rendering systems
+        './rendering/renderer.js',
+        './rendering/ui-renderer.js',
+        './rendering/effects-renderer.js',
+        // Utilities
+        './utils/math-utils.js',
+        './utils/performance.js'
       ];
       
       // Add files one by one to handle missing files gracefully
