@@ -96,7 +96,22 @@ export class Weapons {
           enemy.hp -= wave.damage;
           wave.hitEnemies.push(enemy.id);
           
+          // Add electric sparkle effects when hitting enemy
+          if (window.gameCore?.effectsRenderer) {
+            window.gameCore.effectsRenderer.addSparkle(
+              enemy.x + 30, enemy.y + 35, 
+              '#00ffff', 8
+            );
+          }
+          
           if (enemy.hp <= 0) {
+            // Add explosion effect for killed enemy
+            if (window.gameCore?.effectsRenderer) {
+              window.gameCore.effectsRenderer.addExplosion(
+                enemy.x + 30, enemy.y + 35, 
+                'medium', '#8a2be2'
+              );
+            }
             enemies.splice(j, 1);
             victorySystem.enemiesKilled++;
             console.log('Enemy killed by electric wave! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
@@ -314,7 +329,7 @@ export class Weapons {
     
     const tank = window.gameCore.tank;
     
-    // Create new electric wave
+    // Create new electric wave with enhanced properties
     this.electricWaveSystem.waves.push({
       x: tank.x + 30,
       y: tank.y + 35,
@@ -325,8 +340,25 @@ export class Weapons {
       speed: this.electricWaveSystem.waveSpeed,
       damage: this.electricWaveSystem.waveDamage,
       opacity: 1,
-      hitEnemies: []
+      hitEnemies: [],
+      createdTime: Date.now() // For animation timing
     });
+    
+    // Add initial screen shake when wave is created
+    if (window.gameCore?.effectsRenderer) {
+      window.gameCore.effectsRenderer.addScreenShake(5, 200);
+      
+      // Add initial sparkles at tank position
+      window.gameCore.effectsRenderer.addSparkle(
+        tank.x + 30, tank.y + 35, 
+        '#8a2be2', 12
+      );
+    }
+    
+    // Show enhanced message
+    if (window.gameCore) {
+      window.gameCore.showGeneralMessage("⚡ SÓNG ĐIỆN KHỔNG LỒ! ⚡");
+    }
     
     // Start cooldown
     this.electricWaveSystem.isReady = false;

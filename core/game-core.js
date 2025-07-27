@@ -5,8 +5,10 @@ import { InputManager } from '../input/input-manager.js';
 import { JoystickController } from '../input/joystick-controller.js';
 import { Tank } from '../entities/tank.js';
 import { Enemies } from '../entities/enemies.js';
+import { Bosses } from '../entities/bosses.js';
 import { Bullets } from '../entities/bullets.js';
 import { Weapons } from '../entities/weapons.js';
+import { Items } from '../entities/items.js';
 import { Renderer } from '../rendering/renderer.js';
 import { UIRenderer } from '../rendering/ui-renderer.js';
 import { EffectsRenderer } from '../rendering/effects-renderer.js';
@@ -32,8 +34,10 @@ export class GameCore {
     this.joystickController = null;
     this.tank = null;
     this.enemies = null;
+    this.bosses = null;
     this.bullets = null;
     this.weapons = null;
+    this.items = null;
     this.renderer = null;
     this.uiRenderer = null;
     this.effectsRenderer = null;
@@ -43,7 +47,9 @@ export class GameCore {
     this.victorySystem = {
       enemiesKilled: 0,
       targetKills: CONFIG.victory.targetKills,
-      gameWon: false
+      gameWon: false,
+      bossesKilled: 0,
+      currentBossLevel: 1
     };
 
     // Game state management
@@ -61,9 +67,19 @@ export class GameCore {
 
   // Initialize game when DOM is loaded
   init() {
-    this.initializeDOM();
-    this.initializeGame();
-    this.setupEventListeners();
+    console.log('🔧 GameCore.init() called');
+    try {
+      console.log('📋 Initializing DOM...');
+      this.initializeDOM();
+      console.log('🎮 Initializing game systems...');
+      this.initializeGame();
+      console.log('🎯 Setting up event listeners...');
+      this.setupEventListeners();
+      console.log('✅ GameCore initialization complete');
+    } catch (error) {
+      console.error('❌ Error in GameCore.init():', error);
+      throw error;
+    }
   }
 
   initializeDOM() {
@@ -105,8 +121,10 @@ export class GameCore {
     // Initialize game entities
     this.tank = new Tank(this.scaleFactor);
     this.enemies = new Enemies();
+    this.bosses = new Bosses();
     this.bullets = new Bullets();
     this.weapons = new Weapons(this.scaleFactor);
+    this.items = new Items();
     
     // Initialize rendering systems
     this.renderer = new Renderer(this.ctx, this.scaleFactor);
@@ -179,6 +197,8 @@ export class GameCore {
   }
 
   setupEventListeners() {
+    console.log('🎮 Setting up event listeners...');
+    
     // Service worker registration - TEMPORARILY DISABLED
     // if ('serviceWorker' in navigator) {
     //   window.addEventListener('load', function() {
@@ -196,7 +216,24 @@ export class GameCore {
     // Start button event
     const startBtn = document.getElementById('startBtn');
     if (startBtn) {
-      startBtn.addEventListener('click', (e) => this.startGame(e));
+      console.log('✓ Start button found, adding click listener');
+      startBtn.addEventListener('click', (e) => {
+        console.log('🚀 Start button clicked!');
+        this.startGame(e);
+      });
+      
+      // Add additional event listeners for debugging
+      startBtn.addEventListener('mousedown', (e) => {
+        console.log('👆 Start button mousedown');
+      });
+      
+      startBtn.addEventListener('touchstart', (e) => {
+        console.log('📱 Start button touchstart');
+        e.preventDefault();
+        this.startGame(e);
+      });
+    } else {
+      console.error('❌ Start button not found!');
     }
 
     // Keyboard shortcuts for starting game
@@ -243,12 +280,23 @@ export class GameCore {
   }
 
   startGame(e) {
+    console.log('🎯 startGame() called');
+    
     if (e) {
+      console.log('📝 Event details:', e.type, e.target);
       e.preventDefault();
       e.stopPropagation();
     }
     
+    console.log('🔄 Current gameStarted state:', this.gameStarted);
+    
+    if (this.gameStarted) {
+      console.log('⚠️ Game already started, ignoring');
+      return;
+    }
+    
     // Request fullscreen
+    console.log('🖥️ Requesting fullscreen...');
     this.requestFullscreen();
     
     const startBtn = document.getElementById('startBtn');
@@ -392,8 +440,19 @@ export class GameCore {
       this.enemies.update(this.tank, this.cameraSystem, this.frameCount, this.enemyIdCounter);
       this.enemyIdCounter = this.enemies.getEnemyIdCounter();
       
-      // Update bullets
-      this.bullets.update(this.enemies.getEnemies(), this.cameraSystem, this.victorySystem);
+      // Check for boss spawn
+      this.checkBossSpawn();
+      
+      // Update bosses
+      this.bosses.update(this.tank, this.cameraSystem, this.frameCount);
+      this.bosses.updateBossBullets(this.tank, this.cameraSystem);
+      this.bosses.updateExplosions(this.cameraSystem);
+      
+      // Update bullets (now includes boss collision)
+      this.bullets.update(this.enemies.getEnemies(), this.cameraSystem, this.victorySystem, this.items, this.bosses);
+      
+      // Update items
+      this.items.update(this.tank, this.cameraSystem);
       
       // Update weapons
       this.weapons.update(this.tank, this.enemies.getEnemies(), this.victorySystem);
@@ -406,7 +465,9 @@ export class GameCore {
         this.enemies.getEnemies(),
         this.bullets,
         this.weapons,
-        this.enemies.getEnemyBullets()
+        this.enemies.getEnemyBullets(),
+        this.items,
+        this.bosses
       );
       
       // Render UI
@@ -469,6 +530,24 @@ export class GameCore {
     console.log(isVictory ? 'Victory!' : 'Game Over!');
   }
 
+  checkBossSpawn() {
+    // Check if we should spawn a boss
+    const killsForNextBoss = this.victorySystem.currentBossLevel * CONFIG.boss.spawnInterval;
+    
+    if (this.victorySystem.enemiesKilled >= killsForNextBoss && 
+        this.bosses.getBossCount() < CONFIG.boss.maxBosses) {
+      
+      // Spawn boss
+      const boss = this.bosses.spawnBoss(this.tank, this.cameraSystem, this.victorySystem.currentBossLevel);
+      this.showMessage(`Boss Appeared: ${boss.type}!`);
+      
+      // Increase boss level for next spawn
+      this.victorySystem.currentBossLevel++;
+      
+      console.log(`Boss spawned at ${this.victorySystem.enemiesKilled} kills. Next boss at ${this.victorySystem.currentBossLevel * CONFIG.boss.spawnInterval} kills.`);
+    }
+  }
+
   restartGame() {
     // Reset game state
     this.gameState.isGameOver = false;
@@ -478,8 +557,10 @@ export class GameCore {
     // Reset game variables
     this.tank.reset();
     this.enemies.reset();
+    this.bosses.reset();
     this.bullets.reset();
     this.weapons.reset();
+    this.items.reset();
     
     // Re-center tank properly
     this.positionTank();
@@ -490,6 +571,8 @@ export class GameCore {
     
     // Reset victory system
     this.victorySystem.enemiesKilled = 0;
+    this.victorySystem.bossesKilled = 0;
+    this.victorySystem.currentBossLevel = 1;
     this.victorySystem.gameWon = false;
     
     // Show controls again
@@ -504,8 +587,10 @@ export class GameCore {
     // Reset game variables
     this.tank.reset();
     this.enemies.reset();
+    this.bosses.reset();
     this.bullets.reset();
     this.weapons.reset();
+    this.items.reset();
     
     // Re-center tank properly
     this.positionTank();
@@ -516,6 +601,8 @@ export class GameCore {
     
     // Reset victory system
     this.victorySystem.enemiesKilled = 0;
+    this.victorySystem.bossesKilled = 0;
+    this.victorySystem.currentBossLevel = 1;
     this.victorySystem.gameWon = false;
     
     // Hide replay button if exists
@@ -573,6 +660,14 @@ window.gameModule = {
 
 // Initialize game when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-  window.gameCore = new GameCore();
-  window.gameCore.init();
+  console.log('🚀 DOM Content Loaded - Initializing GameCore...');
+  try {
+    window.gameCore = new GameCore();
+    console.log('✓ GameCore instance created');
+    window.gameCore.init();
+    console.log('✓ GameCore initialized successfully');
+  } catch (error) {
+    console.error('❌ Error initializing GameCore:', error);
+    console.error('Stack trace:', error.stack);
+  }
 });

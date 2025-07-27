@@ -9,7 +9,7 @@ export const CONFIG = {
 
   // Tank configuration
   tank: {
-    speed: 5,
+    speed: 15,
     hp: 30,
     maxHp: 30,
     shootInterval: 10, // frames between shots
@@ -38,7 +38,9 @@ export const CONFIG = {
     supportSpeed: 8,
     enemySpeed: 5,
     radius: 12,
-    damage: 1
+    damage: 1,
+    triangularDamage: 5, // Triangular bullets do more damage
+    triangularSize: 15   // Triangular bullets are slightly larger
   },
 
   // Enemy configuration
@@ -54,12 +56,19 @@ export const CONFIG = {
     targetKills: 30
   },
 
+  // Boss system
+  boss: {
+    spawnInterval: 10, // Spawn boss every 10 enemy kills
+    maxBosses: 1, // Maximum number of bosses on screen
+    levelScaling: 0.3 // HP increase per boss level (30%)
+  },
+
   // Electric wave system
   electricWave: {
-    cooldownTime: 5000, // milliseconds
-    waveRadius: 300,
-    waveDamage: 5,
-    waveSpeed: 8
+    cooldownTime: 4000, // Giảm từ 5000 xuống 4000ms (4 giây)
+    waveRadius: 600, // Tăng từ 300 lên 600 (gấp đôi)
+    waveDamage: 8, // Tăng damage từ 5 lên 8
+    waveSpeed: 12 // Tăng tốc độ từ 8 lên 12
   },
 
   // Missile system
@@ -123,6 +132,7 @@ export const CONFIG = {
       turret: '#d32f2f'
     },
     bullet: '#ffeb3b',
+    triangularBullet: '#ff6b35', // Orange-red for triangular bullets
     supportBullet: '#2196f3',
     enemyBullet: '#ff5722',
     laser: {
@@ -132,6 +142,9 @@ export const CONFIG = {
     },
     electricWave: 'rgba(138, 43, 226, 1)',
     missile: '#ff5722',
+    items: {
+      triangularBullets: '#ffd700' // Gold color for triangular bullet powerup
+    },
     terrain: {
       grass: '#4a7c59',
       dirt: '#8b4513',

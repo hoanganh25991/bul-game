@@ -7,14 +7,15 @@ export class Bullets {
     this.supportBullets = [];
   }
 
-  update(enemies, cameraSystem, victorySystem) {
-    this.updateBullets(enemies, cameraSystem, victorySystem);
-    this.updateSupportBullets(enemies, cameraSystem, victorySystem);
+  update(enemies, cameraSystem, victorySystem, items = null, bosses = null) {
+    this.updateBullets(enemies, cameraSystem, victorySystem, items, bosses);
+    this.updateSupportBullets(enemies, cameraSystem, victorySystem, items, bosses);
   }
 
-  updateBullets(enemies, cameraSystem, victorySystem) {
+  updateBullets(enemies, cameraSystem, victorySystem, items = null, bosses = null) {
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       let bullet = this.bullets[i];
+      let bulletHit = false;
       
       // Update bullet world position
       bullet.worldY += bullet.dy;
@@ -25,38 +26,78 @@ export class Bullets {
       bullet.x = screenPos.x;
       bullet.y = screenPos.y;
       
-      // Check collision with enemies
-      for (let j = enemies.length - 1; j >= 0; j--) {
-        let enemy = enemies[j];
-        let dx = bullet.x - (enemy.x + 30);
-        let dy = bullet.y - (enemy.y + 35);
-        let distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < 30) {
-          // Hit enemy
-          enemy.hp -= CONFIG.bullets.damage;
-          this.bullets.splice(i, 1);
+      // Check collision with bosses first (higher priority)
+      if (bosses && !bulletHit) {
+        const bossArray = bosses.getBosses();
+        for (let j = bossArray.length - 1; j >= 0; j--) {
+          let boss = bossArray[j];
+          let dx = bullet.x - (boss.x + (60 * boss.size) / 2);
+          let dy = bullet.y - (boss.y + (60 * boss.size) / 2);
+          let distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (enemy.hp <= 0) {
-            enemies.splice(j, 1);
-            victorySystem.enemiesKilled++;
-            console.log('Enemy killed by main bullet! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
+          if (distance < (30 * boss.size)) {
+            // Hit boss
+            const damage = bullet.isTriangular ? CONFIG.bullets.triangularDamage : CONFIG.bullets.damage;
+            
+            if (bosses.damageBoss(j, damage)) {
+              // Boss destroyed
+              victorySystem.bossesKilled++;
+              console.log('Boss killed by main bullet! Total boss kills:', victorySystem.bossesKilled);
+              
+              // Drop special item when boss dies
+              if (items) {
+                items.dropItem(boss.worldX + (60 * boss.size) / 2, boss.worldY + (60 * boss.size) / 2);
+              }
+            }
+            
+            this.bullets.splice(i, 1);
+            bulletHit = true;
+            break;
           }
-          break;
+        }
+      }
+      
+      // Check collision with enemies if bullet didn't hit boss
+      if (!bulletHit) {
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          let enemy = enemies[j];
+          let dx = bullet.x - (enemy.x + 30);
+          let dy = bullet.y - (enemy.y + 35);
+          let distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < 30) {
+            // Hit enemy
+            const damage = bullet.isTriangular ? CONFIG.bullets.triangularDamage : CONFIG.bullets.damage;
+            enemy.hp -= damage;
+            this.bullets.splice(i, 1);
+            bulletHit = true;
+            
+            if (enemy.hp <= 0) {
+              // Drop item before removing enemy
+              if (items) {
+                items.dropItem(enemy.worldX + 30, enemy.worldY + 35);
+              }
+              enemies.splice(j, 1);
+              victorySystem.enemiesKilled++;
+              console.log('Enemy killed by main bullet! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
+            }
+            break;
+          }
         }
       }
       
       // Remove bullets that are off screen
-      if (bullet.x < -50 || bullet.x > window.innerWidth + 50 || 
-          bullet.y < -50 || bullet.y > window.innerHeight + 50) {
+      if (!bulletHit && (bullet.x < -50 || bullet.x > window.innerWidth + 50 || 
+          bullet.y < -50 || bullet.y > window.innerHeight + 50)) {
         this.bullets.splice(i, 1);
       }
     }
   }
 
-  updateSupportBullets(enemies, cameraSystem, victorySystem) {
+  updateSupportBullets(enemies, cameraSystem, victorySystem, items = null, bosses = null) {
     for (let i = this.supportBullets.length - 1; i >= 0; i--) {
       let bullet = this.supportBullets[i];
+      let bulletHit = false;
       
       // Update bullet world position
       bullet.worldY += bullet.dy;
@@ -67,30 +108,66 @@ export class Bullets {
       bullet.x = screenPos.x;
       bullet.y = screenPos.y;
       
-      // Check collision with enemies
-      for (let j = enemies.length - 1; j >= 0; j--) {
-        let enemy = enemies[j];
-        let dx = bullet.x - (enemy.x + 30);
-        let dy = bullet.y - (enemy.y + 35);
-        let distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < 30) {
-          // Hit enemy
-          enemy.hp -= CONFIG.bullets.damage;
-          this.supportBullets.splice(i, 1);
+      // Check collision with bosses first (higher priority)
+      if (bosses && !bulletHit) {
+        const bossArray = bosses.getBosses();
+        for (let j = bossArray.length - 1; j >= 0; j--) {
+          let boss = bossArray[j];
+          let dx = bullet.x - (boss.x + (60 * boss.size) / 2);
+          let dy = bullet.y - (boss.y + (60 * boss.size) / 2);
+          let distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (enemy.hp <= 0) {
-            enemies.splice(j, 1);
-            victorySystem.enemiesKilled++;
-            console.log('Enemy killed by support bullet! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
+          if (distance < (30 * boss.size)) {
+            // Hit boss
+            if (bosses.damageBoss(j, CONFIG.bullets.damage)) {
+              // Boss destroyed
+              victorySystem.bossesKilled++;
+              console.log('Boss killed by support bullet! Total boss kills:', victorySystem.bossesKilled);
+              
+              // Drop special item when boss dies
+              if (items) {
+                items.dropItem(boss.worldX + (60 * boss.size) / 2, boss.worldY + (60 * boss.size) / 2);
+              }
+            }
+            
+            this.supportBullets.splice(i, 1);
+            bulletHit = true;
+            break;
           }
-          break;
+        }
+      }
+      
+      // Check collision with enemies if bullet didn't hit boss
+      if (!bulletHit) {
+        for (let j = enemies.length - 1; j >= 0; j--) {
+          let enemy = enemies[j];
+          let dx = bullet.x - (enemy.x + 30);
+          let dy = bullet.y - (enemy.y + 35);
+          let distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < 30) {
+            // Hit enemy
+            enemy.hp -= CONFIG.bullets.damage;
+            this.supportBullets.splice(i, 1);
+            bulletHit = true;
+            
+            if (enemy.hp <= 0) {
+              // Drop item before removing enemy
+              if (items) {
+                items.dropItem(enemy.worldX + 30, enemy.worldY + 35);
+              }
+              enemies.splice(j, 1);
+              victorySystem.enemiesKilled++;
+              console.log('Enemy killed by support bullet! Total kills:', victorySystem.enemiesKilled, '/', victorySystem.targetKills);
+            }
+            break;
+          }
         }
       }
       
       // Remove bullets that are off screen
-      if (bullet.x < -50 || bullet.x > window.innerWidth + 50 || 
-          bullet.y < -50 || bullet.y > window.innerHeight + 50) {
+      if (!bulletHit && (bullet.x < -50 || bullet.x > window.innerWidth + 50 || 
+          bullet.y < -50 || bullet.y > window.innerHeight + 50)) {
         this.supportBullets.splice(i, 1);
       }
     }
@@ -104,7 +181,8 @@ export class Bullets {
       y: bulletData.y,
       dx: bulletData.dx,
       dy: bulletData.dy,
-      isLaser: bulletData.isLaser || false
+      isLaser: bulletData.isLaser || false,
+      isTriangular: bulletData.isTriangular || false
     });
   }
 
@@ -146,7 +224,8 @@ export class Bullets {
       y: tank.y - 12, // Screen position (will be updated)
       dx: dx,
       dy: dy,
-      isLaser: true
+      isLaser: true,
+      isTriangular: false
     });
   }
 

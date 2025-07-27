@@ -26,6 +26,20 @@ export class UIRenderer {
     this.ctx.fillText(`❤️ HP: ${tankStats.hp}/${tankStats.maxHp}`, uiMargin, uiLineHeight);
     this.ctx.fillText(`💀 Tiêu diệt: ${victorySystem.enemiesKilled}/${victorySystem.targetKills}`, uiMargin, uiLineHeight * 2);
     
+    // Display boss information
+    if (victorySystem.bossesKilled > 0) {
+      this.ctx.fillText(`👑 Boss: ${victorySystem.bossesKilled}`, uiMargin, uiLineHeight * 2.5);
+    }
+    
+    // Display next boss countdown
+    const nextBossKills = victorySystem.currentBossLevel * CONFIG.boss.spawnInterval;
+    const killsUntilBoss = nextBossKills - victorySystem.enemiesKilled;
+    if (killsUntilBoss > 0) {
+      this.ctx.fillStyle = '#FFD700';
+      this.ctx.fillText(`⚡ Boss tiếp theo: ${killsUntilBoss} kills`, uiMargin, uiLineHeight * 3);
+      this.ctx.fillStyle = CONFIG.colors.ui.text;
+    }
+    
     // Display weapon system states
     this.renderWeaponStates(weapons, uiMargin, uiLineHeight);
     
@@ -45,44 +59,44 @@ export class UIRenderer {
     if (!systemStates.fuel.isReady) {
       let cooldownSeconds = Math.ceil(systemStates.fuel.cooldown / 1000);
       this.ctx.fillStyle = CONFIG.colors.ui.text;
-      this.ctx.fillText(`⛽ Nhiên liệu: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 3);
+      this.ctx.fillText(`⛽ Nhiên liệu: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 4);
     } else {
       this.ctx.fillStyle = CONFIG.colors.ui.text;
-      this.ctx.fillText(`⛽ Nhiên liệu: Sẵn sàng`, uiMargin, uiLineHeight * 3);
+      this.ctx.fillText(`⛽ Nhiên liệu: Sẵn sàng`, uiMargin, uiLineHeight * 4);
     }
     
     // Display electric wave cooldown
     if (!systemStates.electricWave.isReady) {
       let cooldownSeconds = Math.ceil(systemStates.electricWave.cooldown / 1000);
       this.ctx.fillStyle = CONFIG.colors.ui.text;
-      this.ctx.fillText(`⚡ Sóng điện: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 4);
+      this.ctx.fillText(`⚡ Sóng điện: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 5);
     } else {
       this.ctx.fillStyle = CONFIG.colors.ui.text;
-      this.ctx.fillText(`⚡ Sóng điện: Sẵn sàng`, uiMargin, uiLineHeight * 4);
+      this.ctx.fillText(`⚡ Sóng điện: Sẵn sàng`, uiMargin, uiLineHeight * 5);
     }
     
     // Display missile cooldown
     if (!systemStates.missile.isReady) {
       let cooldownSeconds = Math.ceil(systemStates.missile.cooldown / 1000);
       this.ctx.fillStyle = CONFIG.colors.ui.text;
-      this.ctx.fillText(`🚀 Tên lửa: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 5);
+      this.ctx.fillText(`🚀 Tên lửa: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 6);
     } else {
       this.ctx.fillStyle = CONFIG.colors.ui.text;
-      this.ctx.fillText(`🚀 Tên lửa: Sẵn sàng`, uiMargin, uiLineHeight * 5);
+      this.ctx.fillText(`🚀 Tên lửa: Sẵn sàng`, uiMargin, uiLineHeight * 6);
     }
     
     // Display bullet time status
     if (systemStates.bulletTime.isActive) {
       let durationSeconds = Math.ceil(systemStates.bulletTime.duration / 1000);
       this.ctx.fillStyle = CONFIG.colors.ui.text;
-      this.ctx.fillText(`🔴 Bullet Time: ${durationSeconds}s`, uiMargin, uiLineHeight * 6);
+      this.ctx.fillText(`🔴 Bullet Time: ${durationSeconds}s`, uiMargin, uiLineHeight * 7);
     } else if (!systemStates.bulletTime.isReady) {
       let cooldownSeconds = Math.ceil(systemStates.bulletTime.cooldown / 1000);
       this.ctx.fillStyle = CONFIG.colors.ui.health.low;
-      this.ctx.fillText(`🔴 Bullet Time: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 6);
+      this.ctx.fillText(`🔴 Bullet Time: ${cooldownSeconds}s`, uiMargin, uiLineHeight * 7);
     } else {
       this.ctx.fillStyle = CONFIG.colors.ui.text;
-      this.ctx.fillText(`🔴 Bullet Time: Sẵn sàng`, uiMargin, uiLineHeight * 6);
+      this.ctx.fillText(`🔴 Bullet Time: Sẵn sàng`, uiMargin, uiLineHeight * 7);
     }
   }
 

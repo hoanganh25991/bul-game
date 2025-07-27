@@ -18,6 +18,7 @@ export class Tank {
     this.canShootWhileMoving = CONFIG.tank.canShootWhileMoving;
     this.autoShoot = CONFIG.tank.autoShoot;
     this.scaleFactor = scaleFactor;
+    this.hasTriangularBullets = false; // New property for triangular bullets
 
     // Support tank
     this.supportTank = {
@@ -149,7 +150,8 @@ export class Tank {
         x: this.x + 30, // Screen position (will be updated)
         y: this.y - 12, // Screen position (will be updated)
         dx: dx,
-        dy: dy
+        dy: dy,
+        isTriangular: this.hasTriangularBullets
       });
       this.shootCooldown = this.shootInterval;
     }
@@ -285,6 +287,10 @@ export class Tank {
     this.autoShoot = !this.autoShoot;
   }
 
+  setTriangularBullets(enabled) {
+    this.hasTriangularBullets = enabled;
+  }
+
   reset() {
     this.hp = this.maxHp;
     this.worldX = 0;
@@ -292,6 +298,7 @@ export class Tank {
     this.shootCooldown = 0;
     this.angle = -Math.PI / 2;
     this.turretAngle = -Math.PI / 2;
+    this.hasTriangularBullets = false;
 
     // Reset support tank
     this.supportTank.hp = this.supportTank.maxHp;

@@ -234,35 +234,82 @@ export class EffectsRenderer {
   renderElectricWave(wave) {
     this.ctx.save();
     
-    // Main wave circle
-    this.ctx.strokeStyle = CONFIG.colors.electricWave;
-    this.ctx.lineWidth = 3;
-    this.ctx.globalAlpha = wave.opacity;
-    this.ctx.beginPath();
-    this.ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
-    this.ctx.stroke();
-    
-    // Electric arcs
-    if (wave.opacity > 0.5) {
-      this.ctx.strokeStyle = '#00ffff';
-      this.ctx.lineWidth = 1;
-      this.ctx.globalAlpha = wave.opacity * 0.7;
+    // Multiple wave rings for more impressive effect
+    const ringCount = 3;
+    for (let ring = 0; ring < ringCount; ring++) {
+      const ringRadius = wave.radius - (ring * 15);
+      if (ringRadius <= 0) continue;
       
-      for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const innerRadius = wave.radius * 0.8;
-        const outerRadius = wave.radius * 1.2;
+      // Main wave circle with gradient effect
+      this.ctx.strokeStyle = ring === 0 ? CONFIG.colors.electricWave : 
+                           ring === 1 ? '#aa2bff' : '#6600cc';
+      this.ctx.lineWidth = ring === 0 ? 5 : ring === 1 ? 3 : 2;
+      this.ctx.globalAlpha = wave.opacity * (1 - ring * 0.2);
+      this.ctx.shadowColor = CONFIG.colors.electricWave;
+      this.ctx.shadowBlur = 10;
+      this.ctx.beginPath();
+      this.ctx.arc(wave.x, wave.y, ringRadius, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
+    
+    // Electric arcs - more and more dynamic
+    if (wave.opacity > 0.3) {
+      this.ctx.strokeStyle = '#00ffff';
+      this.ctx.lineWidth = 2;
+      this.ctx.globalAlpha = wave.opacity * 0.8;
+      this.ctx.shadowColor = '#00ffff';
+      this.ctx.shadowBlur = 5;
+      
+      // More electric arcs for bigger wave
+      const arcCount = Math.min(16, Math.floor(wave.radius / 20));
+      for (let i = 0; i < arcCount; i++) {
+        const angle = (i / arcCount) * Math.PI * 2 + Date.now() * 0.01;
+        const innerRadius = wave.radius * 0.7;
+        const outerRadius = wave.radius * 1.3;
         
-        const startX = wave.x + Math.cos(angle) * innerRadius;
-        const startY = wave.y + Math.sin(angle) * innerRadius;
-        const endX = wave.x + Math.cos(angle) * outerRadius;
-        const endY = wave.y + Math.sin(angle) * outerRadius;
+        // Add some randomness to make it look more electric
+        const randomOffset = (Math.sin(Date.now() * 0.02 + i) * 10);
+        const startX = wave.x + Math.cos(angle) * (innerRadius + randomOffset);
+        const startY = wave.y + Math.sin(angle) * (innerRadius + randomOffset);
+        const endX = wave.x + Math.cos(angle) * (outerRadius + randomOffset);
+        const endY = wave.y + Math.sin(angle) * (outerRadius + randomOffset);
         
         this.ctx.beginPath();
         this.ctx.moveTo(startX, startY);
         this.ctx.lineTo(endX, endY);
         this.ctx.stroke();
       }
+      
+      // Inner lightning bolts
+      this.ctx.strokeStyle = '#ffffff';
+      this.ctx.lineWidth = 1;
+      this.ctx.globalAlpha = wave.opacity * 0.6;
+      
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2 + Date.now() * 0.005;
+        const radius = wave.radius * 0.5;
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(wave.x, wave.y);
+        
+        // Create zigzag lightning effect
+        const segments = 4;
+        for (let s = 1; s <= segments; s++) {
+          const segmentAngle = angle + (Math.sin(Date.now() * 0.01 + s) * 0.3);
+          const segmentRadius = (radius / segments) * s;
+          const zigzag = Math.sin(Date.now() * 0.02 + s) * 10;
+          
+          const x = wave.x + Math.cos(segmentAngle) * segmentRadius + zigzag;
+          const y = wave.y + Math.sin(segmentAngle) * segmentRadius + zigzag;
+          this.ctx.lineTo(x, y);
+        }
+        this.ctx.stroke();
+      }
+    }
+    
+    // Add screen shake for large waves
+    if (wave.radius > 200 && wave.opacity > 0.8) {
+      this.addScreenShake(3, 100);
     }
     
     this.ctx.restore();

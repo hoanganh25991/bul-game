@@ -11,7 +11,7 @@ export class Renderer {
     this.scaleFactor = scaleFactor;
   }
 
-  render(worldSystem, cameraSystem, tank, enemies, bullets, weapons, enemyBullets = []) {
+  render(worldSystem, cameraSystem, tank, enemies, bullets, weapons, enemyBullets = [], items = null, bosses = null) {
     // Draw terrain and decorations
     this.drawTerrain(worldSystem, cameraSystem);
     this.drawDecorations(worldSystem, cameraSystem);
@@ -24,6 +24,13 @@ export class Renderer {
     enemies.forEach(enemy => {
       this.drawTank(enemy.x, enemy.y, CONFIG.colors.enemy.main, CONFIG.colors.enemy.turret, true, enemy.hp, enemy.maxHp);
     });
+    
+    // Draw bosses
+    if (bosses) {
+      bosses.getBosses().forEach(boss => {
+        this.drawBoss(boss);
+      });
+    }
     
     // Draw bullets
     bullets.getBullets().forEach(bullet => {
@@ -42,8 +49,34 @@ export class Renderer {
       this.drawBullet(bullet, CONFIG.colors.enemyBullet);
     });
     
+    // Draw boss bullets
+    if (bosses) {
+      bosses.getBossBullets().forEach(bullet => {
+        this.drawBossBullet(bullet);
+      });
+    }
+    
+    // Draw boss explosions
+    if (bosses) {
+      bosses.getExplosions().forEach(explosion => {
+        this.drawBossExplosion(explosion);
+      });
+    }
+    
+    // Draw items
+    if (items) {
+      items.getItems().forEach(item => {
+        this.drawItem(item);
+      });
+    }
+    
     // Draw weapon effects
     this.drawWeaponEffects(weapons);
+    
+    // Draw boss effects
+    if (bosses) {
+      this.drawBossEffects(bosses);
+    }
     
     // Draw auto-aim indicators
     if (CONFIG.tank.autoAim && CONFIG.tank.autoAimVisualIndicators) {
@@ -412,6 +445,8 @@ export class Renderer {
     // If it's a laser, draw laser beam instead of round bullet
     if (bullet.isLaser) {
       this.drawLaser(bullet);
+    } else if (bullet.isTriangular) {
+      this.drawTriangularBullet(bullet);
     } else {
       this.ctx.fillStyle = color;
       this.ctx.beginPath();
@@ -419,6 +454,103 @@ export class Renderer {
       this.ctx.arc(bullet.x, bullet.y, bulletRadius, 0, Math.PI * 2);
       this.ctx.fill();
     }
+  }
+
+  drawTriangularBullet(bullet) {
+    this.ctx.save();
+    this.ctx.fillStyle = CONFIG.colors.triangularBullet;
+    
+    const size = MathUtils.getScaledSize(CONFIG.bullets.triangularSize, this.scaleFactor);
+    
+    // Calculate rotation angle based on bullet direction
+    const angle = Math.atan2(bullet.dy, bullet.dx) + Math.PI / 2;
+    
+    this.ctx.translate(bullet.x, bullet.y);
+    this.ctx.rotate(angle);
+    
+    // Draw triangle
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, -size);
+    this.ctx.lineTo(-size * 0.6, size * 0.5);
+    this.ctx.lineTo(size * 0.6, size * 0.5);
+    this.ctx.closePath();
+    this.ctx.fill();
+    
+    // Add glow effect
+    this.ctx.shadowColor = CONFIG.colors.triangularBullet;
+    this.ctx.shadowBlur = 8;
+    this.ctx.fill();
+    
+    this.ctx.restore();
+  }
+
+  drawItem(item) {
+    this.ctx.save();
+    
+    switch (item.type) {
+      case 'triangular_bullets':
+        this.drawTriangularBulletsItem(item);
+        break;
+    }
+    
+    this.ctx.restore();
+  }
+
+  drawTriangularBulletsItem(item) {
+    const size = 25;
+    const time = Date.now() * 0.005;
+    
+    // Floating animation
+    const floatOffset = Math.sin(time + item.x * 0.01) * 3;
+    const y = item.y + floatOffset;
+    
+    // Rotation animation
+    const rotation = time * 2;
+    
+    // Draw glow effect
+    this.ctx.shadowColor = CONFIG.colors.items.triangularBullets;
+    this.ctx.shadowBlur = 15;
+    
+    // Draw outer cage (lồng pháo)
+    this.ctx.strokeStyle = CONFIG.colors.items.triangularBullets;
+    this.ctx.lineWidth = 3;
+    this.ctx.translate(item.x, y);
+    this.ctx.rotate(rotation);
+    
+    // Draw cage bars (vertical)
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      const x1 = Math.cos(angle) * size * 0.8;
+      const y1 = Math.sin(angle) * size * 0.8;
+      const x2 = Math.cos(angle) * size * 1.2;
+      const y2 = Math.sin(angle) * size * 1.2;
+      
+      this.ctx.beginPath();
+      this.ctx.moveTo(x1, y1 - size * 0.3);
+      this.ctx.lineTo(x1, y1 + size * 0.3);
+      this.ctx.stroke();
+    }
+    
+    // Draw cage rings (horizontal)
+    this.ctx.beginPath();
+    this.ctx.arc(0, -size * 0.2, size, 0, Math.PI * 2);
+    this.ctx.stroke();
+    
+    this.ctx.beginPath();
+    this.ctx.arc(0, size * 0.2, size, 0, Math.PI * 2);
+    this.ctx.stroke();
+    
+    // Draw triangular bullet inside cage
+    this.ctx.fillStyle = CONFIG.colors.triangularBullet;
+    this.ctx.shadowBlur = 8;
+    
+    // Draw triangle
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, -size * 0.4);
+    this.ctx.lineTo(-size * 0.3, size * 0.2);
+    this.ctx.lineTo(size * 0.3, size * 0.2);
+    this.ctx.closePath();
+    this.ctx.fill();
   }
 
   drawLaser(bullet) {
@@ -639,6 +771,191 @@ export class Renderer {
     this.ctx.moveTo(fromX, fromY);
     this.ctx.lineTo(toX, toY);
     this.ctx.stroke();
+    
+    this.ctx.restore();
+  }
+
+  drawBoss(boss) {
+    this.ctx.save();
+    
+    // Calculate boss size
+    const bossSize = 60 * boss.size;
+    const centerX = boss.x + bossSize / 2;
+    const centerY = boss.y + bossSize / 2;
+    
+    // Draw boss name above health bar
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 14px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText(boss.type, centerX, boss.y - 35);
+    
+    // Draw health bar
+    const healthBarWidth = bossSize * 0.8;
+    const healthBarHeight = 8;
+    const healthBarY = boss.y - 25;
+    
+    this.ctx.strokeStyle = '#fff';
+    this.ctx.lineWidth = 2;
+    this.ctx.strokeRect(centerX - healthBarWidth / 2, healthBarY, healthBarWidth, healthBarHeight);
+    
+    // Background health bar
+    this.ctx.fillStyle = '#333';
+    this.ctx.fillRect(centerX - healthBarWidth / 2, healthBarY, healthBarWidth, healthBarHeight);
+    
+    // Health bar color based on percentage
+    let percent = Math.max(0, Math.min(1, boss.hp / boss.maxHp));
+    if (percent > 0.6) this.ctx.fillStyle = '#76ff03';
+    else if (percent > 0.3) this.ctx.fillStyle = '#ffeb3b';
+    else this.ctx.fillStyle = '#f44336';
+    this.ctx.fillRect(centerX - healthBarWidth / 2, healthBarY, healthBarWidth * percent, healthBarHeight);
+    
+    // Draw shield effect if active
+    if (boss.shieldActive) {
+      this.ctx.strokeStyle = '#00CED1';
+      this.ctx.lineWidth = 4;
+      this.ctx.globalAlpha = 0.7;
+      this.ctx.beginPath();
+      this.ctx.arc(centerX, centerY, bossSize / 2 + 10, 0, Math.PI * 2);
+      this.ctx.stroke();
+      this.ctx.globalAlpha = 1;
+    }
+    
+    // Draw boss tank (scaled up)
+    this.ctx.scale(boss.size, boss.size);
+    const scaledX = boss.x / boss.size;
+    const scaledY = boss.y / boss.size;
+    
+    this.drawTank(scaledX, scaledY, boss.color, boss.turretColor, true, boss.hp, boss.maxHp, boss.angle, boss.turretAngle);
+    
+    this.ctx.restore();
+    
+    // Draw special ability indicators
+    this.drawBossAbilityIndicators(boss, centerX, centerY);
+  }
+
+  drawBossAbilityIndicators(boss, centerX, centerY) {
+    this.ctx.save();
+    
+    // Draw rapid fire indicator
+    if (boss.rapidFireActive) {
+      this.ctx.fillStyle = '#ff6b35';
+      this.ctx.font = 'bold 12px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText('RAPID FIRE!', centerX, centerY - 40);
+    }
+    
+    // Draw electric burst charging indicator
+    if (boss.specialAbility === 'electric_burst' && boss.specialCooldown <= 60 && boss.specialCooldown > 0) {
+      this.ctx.strokeStyle = '#FFD700';
+      this.ctx.lineWidth = 3;
+      this.ctx.globalAlpha = 0.8;
+      this.ctx.beginPath();
+      this.ctx.arc(centerX, centerY, 80, 0, Math.PI * 2);
+      this.ctx.stroke();
+      this.ctx.globalAlpha = 1;
+    }
+    
+    this.ctx.restore();
+  }
+
+  drawBossBullet(bullet) {
+    this.ctx.save();
+    
+    if (bullet.isExplosive) {
+      // Draw explosive bullet
+      this.ctx.fillStyle = '#ff5722';
+      this.ctx.beginPath();
+      this.ctx.arc(bullet.x, bullet.y, 8, 0, Math.PI * 2);
+      this.ctx.fill();
+      
+      // Draw explosive glow
+      this.ctx.shadowColor = '#ff5722';
+      this.ctx.shadowBlur = 10;
+      this.ctx.fillStyle = '#ffab00';
+      this.ctx.beginPath();
+      this.ctx.arc(bullet.x, bullet.y, 4, 0, Math.PI * 2);
+      this.ctx.fill();
+    } else {
+      // Draw normal boss bullet (larger than regular enemy bullets)
+      this.ctx.fillStyle = '#8B0000';
+      this.ctx.beginPath();
+      this.ctx.arc(bullet.x, bullet.y, 6, 0, Math.PI * 2);
+      this.ctx.fill();
+    }
+    
+    this.ctx.restore();
+  }
+
+  drawBossExplosion(explosion) {
+    this.ctx.save();
+    
+    const progress = 1 - (explosion.duration / explosion.maxDuration);
+    const currentRadius = explosion.radius * progress;
+    const alpha = explosion.duration / explosion.maxDuration;
+    
+    // Outer explosion
+    this.ctx.globalAlpha = alpha * 0.7;
+    this.ctx.fillStyle = '#ff5722';
+    this.ctx.beginPath();
+    this.ctx.arc(explosion.x, explosion.y, currentRadius, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Inner explosion
+    this.ctx.globalAlpha = alpha * 0.9;
+    this.ctx.fillStyle = '#ffab00';
+    this.ctx.beginPath();
+    this.ctx.arc(explosion.x, explosion.y, currentRadius * 0.6, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Core explosion
+    this.ctx.globalAlpha = alpha;
+    this.ctx.fillStyle = '#fff';
+    this.ctx.beginPath();
+    this.ctx.arc(explosion.x, explosion.y, currentRadius * 0.3, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    this.ctx.restore();
+  }
+
+  drawBossEffects(bosses) {
+    this.ctx.save();
+    
+    bosses.getBosses().forEach(boss => {
+      // Draw electric burst effect
+      if (boss.electricBurstEffect && boss.electricBurstEffect.active) {
+        const centerX = boss.x + (60 * boss.size) / 2;
+        const centerY = boss.y + (60 * boss.size) / 2;
+        
+        // Draw lightning bolt to target
+        this.ctx.strokeStyle = '#FFD700';
+        this.ctx.lineWidth = 4;
+        this.ctx.globalAlpha = 0.8;
+        this.ctx.beginPath();
+        this.ctx.moveTo(centerX, centerY);
+        
+        // Create zigzag lightning effect
+        const dx = boss.electricBurstEffect.targetX - boss.worldX;
+        const dy = boss.electricBurstEffect.targetY - boss.worldY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const steps = 8;
+        
+        for (let i = 1; i <= steps; i++) {
+          const progress = i / steps;
+          const x = centerX + (dx * progress) + (Math.random() - 0.5) * 20;
+          const y = centerY + (dy * progress) + (Math.random() - 0.5) * 20;
+          this.ctx.lineTo(x, y);
+        }
+        
+        this.ctx.stroke();
+        this.ctx.globalAlpha = 1;
+        
+        // Decrease effect duration
+        boss.electricBurstEffect.duration--;
+        if (boss.electricBurstEffect.duration <= 0) {
+          boss.electricBurstEffect.active = false;
+        }
+      }
+    });
     
     this.ctx.restore();
   }
