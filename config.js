@@ -9,9 +9,9 @@ export const CONFIG = {
 
   // Tank configuration
   tank: {
-    speed: 3,
-    hp: 10,
-    maxHp: 10,
+    speed: 5,
+    hp: 30,
+    maxHp: 30,
     shootInterval: 10, // frames between shots
     autoAim: true,
     canShootWhileMoving: true,

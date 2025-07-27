@@ -305,6 +305,7 @@ export class GameCore {
 
   requestFullscreen() {
     try {
+      if (window.location.hostname === 'localhost') return; // Skip fullscreen in development for easier debugging
       const element = document.documentElement;
       
       if (element.requestFullscreen) {
